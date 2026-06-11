@@ -5,8 +5,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer
 } from "recharts";
 
-/* eslint-disable no-unused-vars */
-
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
@@ -807,7 +805,7 @@ const ExerciseDetail = ({ ex, entries, plan, isFav, isPB, pbValue, onBack, onLog
         <Card>
           <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em" }}>History</div>
           {[...entries].sort((a,b) => new Date(b.date) - new Date(a.date)).map((entry, i) => {
-
+            const realIdx = entries.length - 1 - i;
             const p = progressPct(entry, ex);
             const main = ex.bw ? `${entry.reps ?? "–"} ${ex.unit}` : `${entry.weight ?? "–"}kg`;
             return (
@@ -1337,8 +1335,7 @@ function buildDefaultPlan(profile) {
 
   // Determine the session "type" rotation based on goal + number of training days
   const activeDays = DAYS.filter(d => trainingDays[d] && trainingDays[d] !== "rest");
-  // eslint-disable-next-line no-unused-vars
-const n = activeDays.length;
+  const n = activeDays.length;
 
   // Session templates by goal
   const sessionTypes = (() => {
@@ -1941,13 +1938,10 @@ export default function App() {
     if (data.photos)          setPhotos(data.photos);
   };
 
-const handleSignIn = async () => {
+  const handleSignIn = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { 
-        redirectTo: window.location.origin,
-        skipBrowserRedirect: false,
-      }
+      options: { redirectTo: window.location.origin }
     });
   };
 
@@ -2040,12 +2034,12 @@ const handleSignIn = async () => {
   const favExList  = exercises.filter(e => favourites.includes(e.id));
 
   const TABS = [
-    { id:"dashboard", icon:"🏠", label:"Home"      },
-    { id:"plan",      icon:"📅", label:"Plan"      },
-    { id:"exercises", icon:"💪", label:"Exercises" },
-    { id:"overview",  icon:"📈", label:"Overview"  },
-    { id:"stats",     icon:"⭐", label:"Stats"     },
-    { id:"profile",   icon:"👤", label:"Profile"   },
+    { id:"dashboard", icon:"🏠", label:"Home"    },
+    { id:"plan",      icon:"📅", label:"Plan"    },
+    { id:"exercises", icon:"💪", label:"Exs"     },
+    { id:"overview",  icon:"📈", label:"Charts"  },
+    { id:"stats",     icon:"⭐", label:"Stats"   },
+    { id:"profile",   icon:"👤", label:"Profile" },
   ];
 
   const profileSub = [
@@ -2294,17 +2288,54 @@ const handleSignIn = async () => {
         )}
       </div>
 
-      {/* Bottom nav bar */}
+      {/* Bottom nav bar — mobile optimised */}
       {!detailId && (
-        <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:600, background:"linear-gradient(135deg,#1a1a2e,#16162a)", borderTop:`1px solid ${C.border}`, display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:50 }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              style={{ background:"none", border:"none", padding:"10px 0 12px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-              <span style={{ fontSize:18 }}>{t.icon}</span>
-              <span style={{ fontSize:9, fontWeight:600, color:activeTab===t.id ? C.purple : C.dim, letterSpacing:"0.02em" }}>{t.label}</span>
-              {activeTab === t.id && <div style={{ width:16, height:2, borderRadius:1, background:C.purple }} />}
-            </button>
-          ))}
+        <nav style={{
+          position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
+          width:"100%", maxWidth:600,
+          background:"linear-gradient(135deg,#1a1a2e,#16162a)",
+          borderTop:`1px solid ${C.border}`,
+          display:"grid", gridTemplateColumns:"repeat(6,1fr)",
+          zIndex:50,
+          paddingBottom:"env(safe-area-inset-bottom, 0px)",
+        }}>
+          {TABS.map(t => {
+            const active = activeTab === t.id;
+            return (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                style={{
+                  background:"none", border:"none",
+                  padding:"8px 2px 10px",
+                  cursor:"pointer",
+                  display:"flex", flexDirection:"column",
+                  alignItems:"center", justifyContent:"center",
+                  gap:2,
+                  position:"relative",
+                  minWidth:0,
+                }}>
+                {/* Active indicator bar at top */}
+                <div style={{
+                  position:"absolute", top:0, left:"20%", right:"20%",
+                  height:2, borderRadius:"0 0 2px 2px",
+                  background: active ? C.purple : "transparent",
+                  transition:"background .15s",
+                }} />
+                <span style={{ fontSize:16, lineHeight:1 }}>{t.icon}</span>
+                <span style={{
+                  fontSize:8, fontWeight:700,
+                  color: active ? C.purple : C.dim,
+                  letterSpacing:"0.03em",
+                  textTransform:"uppercase",
+                  lineHeight:1,
+                  whiteSpace:"nowrap",
+                  overflow:"hidden",
+                  textOverflow:"ellipsis",
+                  maxWidth:"100%",
+                  paddingLeft:2, paddingRight:2,
+                }}>{t.label}</span>
+              </button>
+            );
+          })}
         </nav>
       )}
 
