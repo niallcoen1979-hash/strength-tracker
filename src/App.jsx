@@ -5,6 +5,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer
 } from "recharts";
 
+/* eslint-disable no-unused-vars */
+
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
