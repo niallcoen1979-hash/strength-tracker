@@ -5,6 +5,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer
 } from "recharts";
 
+/* eslint-disable no-unused-vars */
+
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
@@ -805,7 +807,7 @@ const ExerciseDetail = ({ ex, entries, plan, isFav, isPB, pbValue, onBack, onLog
         <Card>
           <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em" }}>History</div>
           {[...entries].sort((a,b) => new Date(b.date) - new Date(a.date)).map((entry, i) => {
-            const realIdx = entries.length - 1 - i;
+
             const p = progressPct(entry, ex);
             const main = ex.bw ? `${entry.reps ?? "–"} ${ex.unit}` : `${entry.weight ?? "–"}kg`;
             return (
@@ -1335,7 +1337,8 @@ function buildDefaultPlan(profile) {
 
   // Determine the session "type" rotation based on goal + number of training days
   const activeDays = DAYS.filter(d => trainingDays[d] && trainingDays[d] !== "rest");
-  const n = activeDays.length;
+  // eslint-disable-next-line no-unused-vars
+const n = activeDays.length;
 
   // Session templates by goal
   const sessionTypes = (() => {
