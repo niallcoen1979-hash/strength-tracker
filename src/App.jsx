@@ -1,11 +1,10 @@
+/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer
 } from "recharts";
-
-/* eslint-disable no-unused-vars */
 
 // ─────────────────────────────────────────────
 // Constants
@@ -635,7 +634,7 @@ const ExerciseCard = ({ ex, latestEntry, logCount, scheduledDays, isFav, onTap, 
 // ─────────────────────────────────────────────
 // Exercise Detail
 // ─────────────────────────────────────────────
-const ExerciseDetail = ({ ex, entries, plan, isFav, isPB, pbValue, onBack, onLog, onDeleteEntry, onRemove, onPlanChange, onFavToggle, profile }) => {
+const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbValue, onBack, onLog, onDeleteEntry, onRemove, onPlanChange, onFavToggle, profile }) => {
   const todayStr = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
   const [form, setForm]         = useState({ weight:"", sets:"", reps:"", notes:"", date:todayStr() });
   const [dateMode, setDateMode] = useState("today"); // "today" | "custom"
@@ -712,6 +711,9 @@ const ExerciseDetail = ({ ex, entries, plan, isFav, isPB, pbValue, onBack, onLog
         <Chip bg="#2a2420">🎯 {ex.t6[0]}–{ex.t6[1]}{unit}</Chip>
         <Chip bg="#22203a">🏆 {ex.t18[0]}–{ex.t18[1]}{unit}</Chip>
       </div>
+
+      {/* Muscle map for this exercise */}
+      <MuscleMapPanel logs={logs} exercises={[]} highlightEx={ex} />
 
       {/* Schedule days — inline toggles */}
       <Card style={{ marginBottom:14 }}>
@@ -1055,6 +1057,9 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
           💪 Session logged today. Keep it up!
         </div>
       )}
+
+      {/* Muscle map */}
+      <MuscleMapPanel logs={logs} exercises={exercises} />
 
       {/* Today's plan */}
       <SectionLabel>Today — {today}</SectionLabel>
@@ -1564,6 +1569,305 @@ function calcStreaks(logs, plan, exercises) {
 
   return { currentStreak, longestStreak, weeksCompleted, muscleGroupWarnings };
 }
+
+
+// ─────────────────────────────────────────────
+// MUSCLE MAP — exercise-to-muscle mapping
+// ─────────────────────────────────────────────
+
+// Which muscles each exercise works (primary + secondary)
+const EXERCISE_MUSCLES = {
+  bench:      { primary:["chest"],                    secondary:["shoulders","triceps"] },
+  incline:    { primary:["chest"],                    secondary:["shoulders","triceps"] },
+  pecfly:     { primary:["chest"],                    secondary:[] },
+  chestpress: { primary:["chest"],                    secondary:["shoulders","triceps"] },
+  cablefly:   { primary:["chest"],                    secondary:[] },
+  dbflat:     { primary:["chest"],                    secondary:["shoulders","triceps"] },
+  pulldown:   { primary:["lats"],                     secondary:["biceps","traps"] },
+  row:        { primary:["lats","traps"],              secondary:["biceps","lower_back"] },
+  seatedrow:  { primary:["lats","traps"],              secondary:["biceps"] },
+  dbrow:      { primary:["lats"],                     secondary:["biceps","traps"] },
+  tbar:       { primary:["lats","traps"],              secondary:["biceps","lower_back"] },
+  pullup:     { primary:["lats"],                     secondary:["biceps","traps"] },
+  shoulder:   { primary:["shoulders"],                secondary:["triceps","traps"] },
+  lateraise:  { primary:["shoulders"],                secondary:[] },
+  frontraise: { primary:["shoulders"],                secondary:[] },
+  reardelt:   { primary:["shoulders"],                secondary:["traps"] },
+  shrugs:     { primary:["traps"],                    secondary:["shoulders"] },
+  triceps:    { primary:["triceps"],                  secondary:[] },
+  skullcrush: { primary:["triceps"],                  secondary:[] },
+  diptricep:  { primary:["triceps"],                  secondary:["chest","shoulders"] },
+  bicepcurl:  { primary:["biceps"],                   secondary:[] },
+  dbcurl:     { primary:["biceps"],                   secondary:[] },
+  hammer:     { primary:["biceps"],                   secondary:["forearms"] },
+  preacher:   { primary:["biceps"],                   secondary:[] },
+  legpress:   { primary:["quads","glutes"],            secondary:["hamstrings","calves"] },
+  rdl:        { primary:["hamstrings","glutes"],       secondary:["lower_back"] },
+  legext:     { primary:["quads"],                    secondary:[] },
+  legcurl:    { primary:["hamstrings"],               secondary:[] },
+  calfpress:  { primary:["calves"],                   secondary:[] },
+  hipabduct:  { primary:["hip_abductor"],             secondary:["glutes"] },
+  hipadduct:  { primary:["hip_adductors"],            secondary:[] },
+  crunches:   { primary:["abs"],                      secondary:["obliques"] },
+  plank:      { primary:["abs","lower_back"],          secondary:["shoulders"] },
+  legrise:    { primary:["abs","hip_flexors"],         secondary:["obliques"] },
+  abcrunch:   { primary:["abs"],                      secondary:["obliques"] },
+  cabletwist: { primary:["obliques"],                 secondary:["abs"] },
+};
+
+// All muscle groups with their display names
+const ALL_MUSCLES = [
+  "chest","shoulders","biceps","triceps","forearms",
+  "abs","obliques","hip_flexors","quads",
+  "lats","traps","lower_back","glutes","hamstrings",
+  "hip_abductor","hip_adductors","calves"
+];
+
+// Calculate weekly muscle volume — how many sessions hit each muscle in last 7 days
+function calcMuscleVolume(logs, exercises) {
+  const cutoff = Date.now() - 7 * 86400000;
+  const volume = {};
+  ALL_MUSCLES.forEach(m => volume[m] = 0);
+
+  exercises.forEach(ex => {
+    const muscles = EXERCISE_MUSCLES[ex.id];
+    if (!muscles) return;
+    const recentSessions = (logs[ex.id] || []).filter(e => new Date(e.date).getTime() > cutoff);
+    recentSessions.forEach(() => {
+      muscles.primary.forEach(m => { if (volume[m] !== undefined) volume[m] += 2; });
+      muscles.secondary.forEach(m => { if (volume[m] !== undefined) volume[m] += 1; });
+    });
+  });
+  return volume;
+}
+
+// Traffic light status for a muscle
+function muscleStatus(volume) {
+  if (volume >= 4) return "green";
+  if (volume >= 2) return "amber";
+  if (volume >= 1) return "amber";
+  return "none";
+}
+
+function muscleColor(status, opacity = 1) {
+  if (status === "green") return `rgba(34,197,94,${opacity})`;
+  if (status === "amber") return `rgba(245,158,11,${opacity})`;
+  return `rgba(45,45,74,${opacity})`;
+}
+
+// ─────────────────────────────────────────────
+// SVG Body Map Component
+// ─────────────────────────────────────────────
+const BodyMap = ({ muscleData, highlightPrimary = [], highlightSecondary = [], view = "front", onClick }) => {
+  const getColor = (muscle) => {
+    if (highlightPrimary.includes(muscle)) return "#6366f1";
+    if (highlightSecondary.includes(muscle)) return "#a855f7";
+    const vol = muscleData?.[muscle] || 0;
+    return muscleColor(muscleStatus(vol), vol > 0 ? 0.85 : 0.25);
+  };
+  const s = (muscle) => ({ fill: getColor(muscle), cursor: onClick ? "pointer" : "default", transition:"fill .2s" });
+  const click = (muscle) => onClick && onClick(muscle);
+
+  if (view === "front") return (
+    <svg viewBox="0 0 200 420" style={{ width:"100%", height:"100%" }}>
+      {/* Body outline */}
+      <ellipse cx="100" cy="38" rx="22" ry="26" fill="#2a2a3e" stroke="#3d3d5c" strokeWidth="1.5"/>
+      <rect x="68" y="62" width="64" height="110" rx="8" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="38" y="65" width="28" height="90" rx="10" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="134" y="65" width="28" height="90" rx="10" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="65" y="168" width="32" height="110" rx="8" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="103" y="168" width="32" height="110" rx="8" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="66" y="272" width="30" height="110" rx="6" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="104" y="272" width="30" height="110" rx="6" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+
+      {/* CHEST */}
+      <path d="M72 68 Q100 80 128 68 L126 110 Q100 118 74 110 Z" {...s("chest")} onClick={()=>click("chest")} />
+      {/* SHOULDERS */}
+      <ellipse cx="58" cy="75" rx="14" ry="16" {...s("shoulders")} onClick={()=>click("shoulders")} />
+      <ellipse cx="142" cy="75" rx="14" ry="16" {...s("shoulders")} onClick={()=>click("shoulders")} />
+      {/* BICEPS */}
+      <path d="M42 90 Q34 92 36 130 Q44 132 50 128 Q52 92 42 90Z" {...s("biceps")} onClick={()=>click("biceps")} />
+      <path d="M158 90 Q166 92 164 130 Q156 132 150 128 Q148 92 158 90Z" {...s("biceps")} onClick={()=>click("biceps")} />
+      {/* FOREARMS */}
+      <path d="M38 132 Q34 134 36 155 Q42 157 48 154 Q50 132 38 132Z" {...s("forearms")} onClick={()=>click("forearms")} />
+      <path d="M162 132 Q166 134 164 155 Q158 157 152 154 Q150 132 162 132Z" {...s("forearms")} onClick={()=>click("forearms")} />
+      {/* ABS */}
+      <rect x="82" y="112" width="15" height="18" rx="3" {...s("abs")} onClick={()=>click("abs")} />
+      <rect x="103" y="112" width="15" height="18" rx="3" {...s("abs")} onClick={()=>click("abs")} />
+      <rect x="82" y="133" width="15" height="18" rx="3" {...s("abs")} onClick={()=>click("abs")} />
+      <rect x="103" y="133" width="15" height="18" rx="3" {...s("abs")} onClick={()=>click("abs")} />
+      <rect x="82" y="154" width="15" height="14" rx="3" {...s("abs")} onClick={()=>click("abs")} />
+      <rect x="103" y="154" width="15" height="14" rx="3" {...s("abs")} onClick={()=>click("abs")} />
+      {/* OBLIQUES */}
+      <path d="M72 115 Q68 135 70 165 L80 162 Q78 135 80 115Z" {...s("obliques")} onClick={()=>click("obliques")} />
+      <path d="M128 115 Q132 135 130 165 L120 162 Q122 135 120 115Z" {...s("obliques")} onClick={()=>click("obliques")} />
+      {/* HIP FLEXORS */}
+      <path d="M80 168 Q90 165 100 168 Q100 182 80 182Z" {...s("hip_flexors")} onClick={()=>click("hip_flexors")} />
+      <path d="M120 168 Q110 165 100 168 Q100 182 120 182Z" {...s("hip_flexors")} onClick={()=>click("hip_flexors")} />
+      {/* QUADS */}
+      <path d="M68 185 Q80 182 88 185 L90 268 Q78 272 66 268Z" {...s("quads")} onClick={()=>click("quads")} />
+      <path d="M132 185 Q120 182 112 185 L110 268 Q122 272 134 268Z" {...s("quads")} onClick={()=>click("quads")} />
+      {/* CALVES front */}
+      <path d="M68 280 Q78 277 86 280 L84 368 Q76 372 68 368Z" {...s("calves")} onClick={()=>click("calves")} />
+      <path d="M132 280 Q122 277 114 280 L116 368 Q124 372 132 368Z" {...s("calves")} onClick={()=>click("calves")} />
+    </svg>
+  );
+
+  // BACK VIEW
+  return (
+    <svg viewBox="0 0 200 420" style={{ width:"100%", height:"100%" }}>
+      <ellipse cx="100" cy="38" rx="22" ry="26" fill="#2a2a3e" stroke="#3d3d5c" strokeWidth="1.5"/>
+      <rect x="68" y="62" width="64" height="110" rx="8" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="38" y="65" width="28" height="90" rx="10" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="134" y="65" width="28" height="90" rx="10" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="65" y="168" width="32" height="110" rx="8" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="103" y="168" width="32" height="110" rx="8" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="66" y="272" width="30" height="110" rx="6" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+      <rect x="104" y="272" width="30" height="110" rx="6" fill="#1e1e35" stroke="#3d3d5c" strokeWidth="1"/>
+
+      {/* TRAPS */}
+      <path d="M80 62 Q100 72 120 62 L118 88 Q100 96 82 88Z" {...s("traps")} onClick={()=>click("traps")} />
+      {/* SHOULDERS back */}
+      <ellipse cx="58" cy="75" rx="14" ry="16" {...s("shoulders")} onClick={()=>click("shoulders")} />
+      <ellipse cx="142" cy="75" rx="14" ry="16" {...s("shoulders")} onClick={()=>click("shoulders")} />
+      {/* LATS */}
+      <path d="M72 90 Q68 95 70 145 L88 148 Q86 100 82 90Z" {...s("lats")} onClick={()=>click("lats")} />
+      <path d="M128 90 Q132 95 130 145 L112 148 Q114 100 118 90Z" {...s("lats")} onClick={()=>click("lats")} />
+      {/* LOWER BACK */}
+      <path d="M86 148 Q100 155 114 148 L114 170 Q100 176 86 170Z" {...s("lower_back")} onClick={()=>click("lower_back")} />
+      {/* TRICEPS */}
+      <path d="M42 90 Q34 92 36 128 Q44 130 50 126 Q52 92 42 90Z" {...s("triceps")} onClick={()=>click("triceps")} />
+      <path d="M158 90 Q166 92 164 128 Q156 130 150 126 Q148 92 158 90Z" {...s("triceps")} onClick={()=>click("triceps")} />
+      {/* GLUTES */}
+      <path d="M72 170 Q86 166 100 170 L100 215 Q86 220 72 215Z" {...s("glutes")} onClick={()=>click("glutes")} />
+      <path d="M128 170 Q114 166 100 170 L100 215 Q114 220 128 215Z" {...s("glutes")} onClick={()=>click("glutes")} />
+      {/* HAMSTRINGS */}
+      <path d="M70 220 Q82 216 90 220 L88 275 Q76 278 68 275Z" {...s("hamstrings")} onClick={()=>click("hamstrings")} />
+      <path d="M130 220 Q118 216 110 220 L112 275 Q124 278 132 275Z" {...s("hamstrings")} onClick={()=>click("hamstrings")} />
+      {/* HIP ABDUCTOR */}
+      <path d="M66 182 Q72 178 76 184 L74 220 Q68 222 64 218Z" {...s("hip_abductor")} onClick={()=>click("hip_abductor")} />
+      <path d="M134 182 Q128 178 124 184 L126 220 Q132 222 136 218Z" {...s("hip_abductor")} onClick={()=>click("hip_abductor")} />
+      {/* HIP ADDUCTORS (inner thigh, visible from back) */}
+      <path d="M92 222 Q100 218 108 222 L106 270 Q100 274 94 270Z" {...s("hip_adductors")} onClick={()=>click("hip_adductors")} />
+      {/* CALVES back */}
+      <path d="M68 282 Q78 278 86 282 L84 370 Q76 374 68 370Z" {...s("calves")} onClick={()=>click("calves")} />
+      <path d="M132 282 Q122 278 114 282 L116 370 Q124 374 132 370Z" {...s("calves")} onClick={()=>click("calves")} />
+    </svg>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Muscle Map Panel — used on Dashboard + Exercise Detail
+// ─────────────────────────────────────────────
+const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
+  const [view, setView] = useState("front");
+  const [hoveredMuscle, setHoveredMuscle] = useState(null);
+
+  // For dashboard: show weekly volume. For exercise: show what it works
+  const muscleData = calcMuscleVolume(logs, exercises);
+  const primary   = highlightEx ? (EXERCISE_MUSCLES[highlightEx.id]?.primary   || []) : [];
+  const secondary = highlightEx ? (EXERCISE_MUSCLES[highlightEx.id]?.secondary || []) : [];
+
+  const muscleName = (m) => m.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+
+  // Weekly summary stats for dashboard
+  const worked  = ALL_MUSCLES.filter(m => muscleData[m] >= 4).length;
+  const partial = ALL_MUSCLES.filter(m => muscleData[m] >= 1 && muscleData[m] < 4).length;
+  const resting = ALL_MUSCLES.filter(m => muscleData[m] === 0).length;
+
+  return (
+    <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:C.text }}>
+          {highlightEx ? `${highlightEx.name}` : "Weekly muscle coverage"}
+        </div>
+        <div style={{ display:"flex", gap:5 }}>
+          {["front","back"].map(v => (
+            <button key={v} onClick={() => setView(v)}
+              style={{ padding:"4px 10px", borderRadius:5, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, background:view===v?C.indigo:C.input, color:view===v?"#fff":C.muted, textTransform:"capitalize" }}>
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Weekly stats row — only on dashboard */}
+      {!highlightEx && (
+        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+          {[
+            { label:"Worked", count:worked,  color:C.green },
+            { label:"Partial", count:partial, color:C.amber },
+            { label:"Resting", count:resting, color:C.dim  },
+          ].map(s => (
+            <div key={s.label} style={{ flex:1, background:C.input, borderRadius:7, padding:"6px 8px", textAlign:"center" }}>
+              <div style={{ fontSize:16, fontWeight:800, color:s.color }}>{s.count}</div>
+              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", fontWeight:600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Exercise highlight legend */}
+      {highlightEx && (primary.length > 0 || secondary.length > 0) && (
+        <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+          {primary.length > 0 && (
+            <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:C.indigo }}>
+              <div style={{ width:10, height:10, borderRadius:2, background:C.indigo }} />
+              Primary: {primary.map(muscleName).join(", ")}
+            </div>
+          )}
+          {secondary.length > 0 && (
+            <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:C.purple }}>
+              <div style={{ width:10, height:10, borderRadius:2, background:C.purple }} />
+              Secondary: {secondary.map(muscleName).join(", ")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Body maps side by side */}
+      <div style={{ display:"flex", justifyContent:"center", height:220 }}>
+        <BodyMap
+          muscleData={highlightEx ? {} : muscleData}
+          highlightPrimary={primary}
+          highlightSecondary={secondary}
+          view={view}
+          onClick={m => setHoveredMuscle(hoveredMuscle === m ? null : m)}
+        />
+      </div>
+
+      {/* Legend — only on dashboard */}
+      {!highlightEx && (
+        <div style={{ display:"flex", gap:12, marginTop:8, justifyContent:"center" }}>
+          {[
+            { color:C.green, label:"Well trained" },
+            { color:C.amber, label:"Some work" },
+            { color:"rgba(45,45,74,0.5)", label:"Needs attention" },
+          ].map(l => (
+            <div key={l.label} style={{ display:"flex", alignItems:"center", gap:4, fontSize:9, color:C.muted }}>
+              <div style={{ width:8, height:8, borderRadius:2, background:l.color }} />
+              {l.label}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Hovered muscle tooltip */}
+      {hoveredMuscle && !highlightEx && (
+        <div style={{ marginTop:10, background:C.input, borderRadius:7, padding:"8px 12px", fontSize:11 }}>
+          <span style={{ fontWeight:700, color:C.text }}>{muscleName(hoveredMuscle)}</span>
+          <span style={{ color:C.muted, marginLeft:6 }}>
+            {muscleData[hoveredMuscle] >= 4 ? "✅ Well trained this week" :
+             muscleData[hoveredMuscle] >= 1 ? "🟡 Some work this week" :
+             "🔴 Not trained this week"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 // ─────────────────────────────────────────────
 // FEATURE: Body weight tracker
@@ -2098,6 +2402,8 @@ export default function App() {
           <ExerciseDetail
             ex={detailEx}
             entries={logs[detailId] || []}
+            logs={logs}
+            exercises={exercises}
             plan={plan}
             profile={profile}
             isFav={favourites.includes(detailId)}
