@@ -10,48 +10,159 @@ import {
 // Constants
 // ─────────────────────────────────────────────
 const SEED_EXERCISES = [
-  // Chest
-  { id:"bench",      name:"Barbell Bench Press",     unit:"kg",        bw:false, group:"Chest",     baseline:[60,75],   t6:[85,95],   t18:[100,110] },
-  { id:"incline",    name:"DB Incline Press",        unit:"kg each",   bw:false, group:"Chest",     baseline:[20,25],   t6:[30,35],   t18:[38,42]   },
-  { id:"pecfly",     name:"Pec Fly (Machine)",       unit:"kg",        bw:false, group:"Chest",     baseline:[40,55],   t6:[60,75],   t18:[80,95]   },
-  { id:"chestpress", name:"Machine Chest Press",     unit:"kg",        bw:false, group:"Chest",     baseline:[50,65],   t6:[75,90],   t18:[95,110]  },
-  { id:"cablefly",   name:"Cable Crossover",         unit:"kg",        bw:false, group:"Chest",     baseline:[10,15],   t6:[18,25],   t18:[28,35]   },
-  { id:"dbflat",     name:"DB Flat Bench Press",     unit:"kg each",   bw:false, group:"Chest",     baseline:[22,28],   t6:[32,38],   t18:[42,50]   },
-  // Back
-  { id:"pulldown",   name:"Lat Pulldown",            unit:"kg",        bw:false, group:"Back",      baseline:[70,85],   t6:[90,100],  t18:[110,120] },
-  { id:"row",        name:"Cable Row",               unit:"kg",        bw:false, group:"Back",      baseline:[70,85],   t6:[90,100],  t18:[110,120] },
-  { id:"seatedrow",  name:"Seated Row (Machine)",    unit:"kg",        bw:false, group:"Back",      baseline:[60,75],   t6:[85,100],  t18:[105,120] },
-  { id:"dbrow",      name:"DB Single-Arm Row",       unit:"kg",        bw:false, group:"Back",      baseline:[25,35],   t6:[40,50],   t18:[55,65]   },
-  { id:"tbar",       name:"T-Bar Row",               unit:"kg",        bw:false, group:"Back",      baseline:[40,55],   t6:[65,80],   t18:[85,100]  },
-  { id:"pullup",     name:"Assisted Pull-Up",        unit:"kg assist", bw:false, group:"Back",      baseline:[30,50],   t6:[15,30],   t18:[0,10]    },
-  // Shoulders
-  { id:"shoulder",   name:"Seated Shoulder Press",   unit:"kg",        bw:false, group:"Shoulders", baseline:[35,45],   t6:[50,60],   t18:[65,75]   },
-  { id:"lateraise",  name:"DB Lateral Raise",        unit:"kg each",   bw:false, group:"Shoulders", baseline:[8,12],    t6:[14,18],   t18:[20,25]   },
-  { id:"frontraise", name:"DB Front Raise",          unit:"kg each",   bw:false, group:"Shoulders", baseline:[8,12],    t6:[14,18],   t18:[20,24]   },
-  { id:"reardelt",   name:"Rear Delt Fly (Machine)", unit:"kg",        bw:false, group:"Shoulders", baseline:[30,40],   t6:[50,60],   t18:[65,75]   },
-  { id:"shrugs",     name:"DB Shrugs",               unit:"kg each",   bw:false, group:"Shoulders", baseline:[25,35],   t6:[40,50],   t18:[55,65]   },
-  // Arms
-  { id:"triceps",    name:"Triceps Pushdown",        unit:"kg",        bw:false, group:"Arms",      baseline:[20,30],   t6:[35,45],   t18:[50,60]   },
-  { id:"skullcrush", name:"Skull Crushers",          unit:"kg",        bw:false, group:"Arms",      baseline:[20,28],   t6:[32,40],   t18:[44,52]   },
-  { id:"diptricep",  name:"Tricep Dips (Assisted)",  unit:"kg assist", bw:false, group:"Arms",      baseline:[30,50],   t6:[15,30],   t18:[0,10]    },
-  { id:"bicepcurl",  name:"Barbell Bicep Curl",      unit:"kg",        bw:false, group:"Arms",      baseline:[25,35],   t6:[40,50],   t18:[55,65]   },
-  { id:"dbcurl",     name:"DB Bicep Curl",           unit:"kg each",   bw:false, group:"Arms",      baseline:[12,16],   t6:[18,22],   t18:[24,30]   },
-  { id:"hammer",     name:"Hammer Curl",             unit:"kg each",   bw:false, group:"Arms",      baseline:[12,16],   t6:[18,22],   t18:[24,30]   },
-  { id:"preacher",   name:"Preacher Curl (Machine)", unit:"kg",        bw:false, group:"Arms",      baseline:[20,30],   t6:[35,45],   t18:[50,60]   },
-  // Legs
-  { id:"legpress",   name:"Leg Press",               unit:"kg",        bw:false, group:"Legs",      baseline:[100,140], t6:[160,180], t18:[200,220] },
-  { id:"rdl",        name:"Romanian Deadlift",       unit:"kg",        bw:false, group:"Legs",      baseline:[50,65],   t6:[80,90],   t18:[100,110] },
-  { id:"legext",     name:"Leg Extension",           unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100]  },
-  { id:"legcurl",    name:"Lying Leg Curl",          unit:"kg",        bw:false, group:"Legs",      baseline:[35,50],   t6:[60,75],   t18:[80,95]   },
-  { id:"calfpress",  name:"Calf Raise (Machine)",    unit:"kg",        bw:false, group:"Legs",      baseline:[60,80],   t6:[90,110],  t18:[120,140] },
-  { id:"hipabduct",  name:"Hip Abductor (Machine)",  unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100]  },
-  { id:"hipadduct",  name:"Hip Adductor (Machine)",  unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100]  },
-  // Core
-  { id:"crunches",   name:"Crunches",                unit:"reps",      bw:true,  group:"Core",      baseline:[15,25],   t6:[35,50],   t18:[60,80]   },
-  { id:"plank",      name:"Plank",                   unit:"seconds",   bw:true,  group:"Core",      baseline:[20,40],   t6:[60,90],   t18:[120,180] },
-  { id:"legrise",    name:"Hanging Leg Raise",       unit:"reps",      bw:true,  group:"Core",      baseline:[8,12],    t6:[15,20],   t18:[25,30]   },
-  { id:"abcrunch",   name:"Ab Crunch (Machine)",     unit:"kg",        bw:false, group:"Core",      baseline:[30,45],   t6:[55,70],   t18:[75,90]   },
-  { id:"cabletwist", name:"Cable Wood Chop",         unit:"kg",        bw:false, group:"Core",      baseline:[10,15],   t6:[18,25],   t18:[28,35]   },
+  // ── Chest ──
+  { id:"bench",       name:"Barbell Bench Press",       unit:"kg",        bw:false, group:"Chest",     baseline:[60,75],   t6:[85,95],   t18:[100,110],
+    desc:"Lie flat on bench, grip bar slightly wider than shoulder width. Lower to chest with control, press explosively. Keep feet flat, arch natural.",
+    video:"https://www.youtube.com/watch?v=rT7DgCr-3pg" },
+  { id:"incline",     name:"DB Incline Press",          unit:"kg each",   bw:false, group:"Chest",     baseline:[20,25],   t6:[30,35],   t18:[38,42],
+    desc:"Set bench to 30-45°. Press dumbbells from shoulder height to arms extended overhead. Controls upper chest development.",
+    video:"https://www.youtube.com/watch?v=8iPEnn-ltC8" },
+  { id:"pecfly",      name:"Pec Fly (Machine)",         unit:"kg",        bw:false, group:"Chest",     baseline:[40,55],   t6:[60,75],   t18:[80,95],
+    desc:"Sit upright, arms out to sides with slight bend. Bring handles together in front of chest squeezing pecs. Slow return.",
+    video:"https://www.youtube.com/watch?v=Z57CtFmRMxA" },
+  { id:"chestpress",  name:"Machine Chest Press",       unit:"kg",        bw:false, group:"Chest",     baseline:[50,65],   t6:[75,90],   t18:[95,110],
+    desc:"Adjust seat so handles are at mid-chest. Press forward until arms extended, return with control. Great for beginners.",
+    video:"https://www.youtube.com/watch?v=xUm0BiZCX_I" },
+  { id:"cablefly",    name:"Cable Crossover",           unit:"kg",        bw:false, group:"Chest",     baseline:[10,15],   t6:[18,25],   t18:[28,35],
+    desc:"Set cables high. Step forward, bring handles down and together in arc motion. Maintains constant tension through full range.",
+    video:"https://www.youtube.com/watch?v=taI4XduLpTk" },
+  { id:"dbflat",      name:"DB Flat Bench Press",       unit:"kg each",   bw:false, group:"Chest",     baseline:[22,28],   t6:[32,38],   t18:[42,50],
+    desc:"Like barbell bench but with dumbbells for greater range of motion. Allows independent arm movement correcting imbalances.",
+    video:"https://www.youtube.com/watch?v=VmB1G1K7v94" },
+  { id:"decline",     name:"Decline Bench Press",       unit:"kg",        bw:false, group:"Chest",     baseline:[60,80],   t6:[85,100],  t18:[105,120],
+    desc:"Bench set to 15-30° decline. Targets lower chest fibres. Grip slightly wider than shoulder width, press from lower chest.",
+    video:"https://www.youtube.com/watch?v=LfyQBUKR8SE" },
+  // ── Back ──
+  { id:"pulldown",    name:"Lat Pulldown",              unit:"kg",        bw:false, group:"Back",      baseline:[70,85],   t6:[90,100],  t18:[110,120],
+    desc:"Grip bar wide, pull down to upper chest leading with elbows. Lean back slightly. Focus on squeezing lats at bottom.",
+    video:"https://www.youtube.com/watch?v=CAwf7n6Luuc" },
+  { id:"row",         name:"Cable Row",                 unit:"kg",        bw:false, group:"Back",      baseline:[70,85],   t6:[90,100],  t18:[110,120],
+    desc:"Sit upright, pull handle to lower abdomen keeping elbows close to body. Squeeze shoulder blades together at end of movement.",
+    video:"https://www.youtube.com/watch?v=GZbfZ033f74" },
+  { id:"seatedrow",   name:"Seated Row (Machine)",      unit:"kg",        bw:false, group:"Back",      baseline:[60,75],   t6:[85,100],  t18:[105,120],
+    desc:"Chest against pad, grip handles, retract shoulder blades and pull handles to sides. Great for mid-back thickness.",
+    video:"https://www.youtube.com/watch?v=xQNrFHEMhI4" },
+  { id:"dbrow",       name:"DB Single-Arm Row",         unit:"kg",        bw:false, group:"Back",      baseline:[25,35],   t6:[40,50],   t18:[55,65],
+    desc:"Brace one hand on bench, row dumbbell from floor to hip leading with elbow. Keep back flat. Full stretch at bottom.",
+    video:"https://www.youtube.com/watch?v=pYcpY20QaE8" },
+  { id:"tbar",        name:"T-Bar Row",                 unit:"kg",        bw:false, group:"Back",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
+    desc:"Straddle barbell, grip handle, pull to lower chest with flat back. Excellent for back thickness and overall mass.",
+    video:"https://www.youtube.com/watch?v=j3Igk5nyZE4" },
+  { id:"pullup",      name:"Assisted Pull-Up",          unit:"kg assist", bw:false, group:"Back",      baseline:[30,50],   t6:[15,30],   t18:[0,10],
+    desc:"Use assisted machine to build pull-up strength. Grip wide, pull chest to bar leading with elbows. Lower with control.",
+    video:"https://www.youtube.com/watch?v=eGo4IYlbE5g" },
+  { id:"facepull",    name:"Face Pull",                 unit:"kg",        bw:false, group:"Back",      baseline:[15,25],   t6:[30,40],   t18:[45,55],
+    desc:"Set cable to head height with rope. Pull to face with elbows high and wide. Key for shoulder health and rear delt development.",
+    video:"https://www.youtube.com/watch?v=rep-qVOkqgk" },
+  { id:"straightarm", name:"Straight Arm Pulldown",     unit:"kg",        bw:false, group:"Back",      baseline:[20,30],   t6:[35,45],   t18:[50,60],
+    desc:"Stand at cable, arms straight, push bar from overhead to thighs. Isolates lats without involving biceps.",
+    video:"https://www.youtube.com/watch?v=PhhSbHFjKGo" },
+  // ── Shoulders ──
+  { id:"shoulder",    name:"Seated Shoulder Press",     unit:"kg",        bw:false, group:"Shoulders", baseline:[35,45],   t6:[50,60],   t18:[65,75],
+    desc:"Sit upright, press bar or dumbbells overhead from shoulder height. Keep core tight. Don't flare elbows excessively.",
+    video:"https://www.youtube.com/watch?v=qEwKCR5JCog" },
+  { id:"lateraise",   name:"DB Lateral Raise",          unit:"kg each",   bw:false, group:"Shoulders", baseline:[8,12],    t6:[14,18],   t18:[20,25],
+    desc:"Raise dumbbells to sides to shoulder height with slight forward lean and bend in elbow. Slow controlled descent.",
+    video:"https://www.youtube.com/watch?v=3VcKaXpzqRo" },
+  { id:"frontraise",  name:"DB Front Raise",            unit:"kg each",   bw:false, group:"Shoulders", baseline:[8,12],    t6:[14,18],   t18:[20,24],
+    desc:"Raise dumbbell forward to eye height with slight bend in elbow. Alternate arms. Targets anterior deltoid.",
+    video:"https://www.youtube.com/watch?v=gkfQMIgFBRk" },
+  { id:"reardelt",    name:"Rear Delt Fly (Machine)",   unit:"kg",        bw:false, group:"Shoulders", baseline:[30,40],   t6:[50,60],   t18:[65,75],
+    desc:"Face pads, reverse the pec fly motion pushing arms back and out. Essential for balanced shoulder development.",
+    video:"https://www.youtube.com/watch?v=b3tHMVsTUQ0" },
+  { id:"shrugs",      name:"DB Shrugs",                 unit:"kg each",   bw:false, group:"Shoulders", baseline:[25,35],   t6:[40,50],   t18:[55,65],
+    desc:"Hold dumbbells at sides, elevate shoulders straight up as high as possible. Pause at top. Builds upper traps.",
+    video:"https://www.youtube.com/watch?v=cJRVVxmytaM" },
+  { id:"upright",     name:"Upright Row",               unit:"kg",        bw:false, group:"Shoulders", baseline:[30,40],   t6:[45,55],   t18:[60,70],
+    desc:"Pull barbell up along body to chin level, elbows leading and flaring out. Targets lateral delts and traps.",
+    video:"https://www.youtube.com/watch?v=amCU-ziHITM" },
+  { id:"arnold",      name:"Arnold Press",              unit:"kg each",   bw:false, group:"Shoulders", baseline:[15,20],   t6:[22,28],   t18:[30,38],
+    desc:"Start with palms facing you at shoulder height, rotate outward as you press overhead. Named after Arnold Schwarzenegger.",
+    video:"https://www.youtube.com/watch?v=6Z15_WdXmVw" },
+  // ── Arms ──
+  { id:"triceps",     name:"Triceps Pushdown",          unit:"kg",        bw:false, group:"Arms",      baseline:[20,30],   t6:[35,45],   t18:[50,60],
+    desc:"Set cable high with bar or rope. Keep elbows at sides, push down until arms fully extended. Squeeze at bottom.",
+    video:"https://www.youtube.com/watch?v=2-LAMcpzODU" },
+  { id:"skullcrush",  name:"Skull Crushers",            unit:"kg",        bw:false, group:"Arms",      baseline:[20,28],   t6:[32,40],   t18:[44,52],
+    desc:"Lie on bench, lower bar to forehead by bending elbows keeping upper arms vertical. Extend back up. EZ bar preferred.",
+    video:"https://www.youtube.com/watch?v=d_KZxkY_0cM" },
+  { id:"diptricep",   name:"Tricep Dips (Assisted)",    unit:"kg assist", bw:false, group:"Arms",      baseline:[30,50],   t6:[15,30],   t18:[0,10],
+    desc:"Use assisted machine. Keep body upright, lower by bending elbows until 90°. Press back up. Lean forward for more chest.",
+    video:"https://www.youtube.com/watch?v=0326dy_-CzM" },
+  { id:"bicepcurl",   name:"Barbell Bicep Curl",        unit:"kg",        bw:false, group:"Arms",      baseline:[25,35],   t6:[40,50],   t18:[55,65],
+    desc:"Stand with underhand grip, curl bar to shoulder height keeping elbows at sides. Squeeze at top. Lower slowly.",
+    video:"https://www.youtube.com/watch?v=kwG2ipFRgfo" },
+  { id:"dbcurl",      name:"DB Bicep Curl",             unit:"kg each",   bw:false, group:"Arms",      baseline:[12,16],   t6:[18,22],   t18:[24,30],
+    desc:"Alternate or simultaneous dumbbell curls. Supinate wrist as you curl for full bicep contraction.",
+    video:"https://www.youtube.com/watch?v=sAq_ocpRh_I" },
+  { id:"hammer",      name:"Hammer Curl",               unit:"kg each",   bw:false, group:"Arms",      baseline:[12,16],   t6:[18,22],   t18:[24,30],
+    desc:"Neutral grip (thumbs up) curl. Works brachialis and brachioradialis in addition to biceps. Great for arm thickness.",
+    video:"https://www.youtube.com/watch?v=zC3nLlEvin4" },
+  { id:"preacher",    name:"Preacher Curl (Machine)",   unit:"kg",        bw:false, group:"Arms",      baseline:[20,30],   t6:[35,45],   t18:[50,60],
+    desc:"Arms braced on pad removing momentum. Full range of motion. Excellent bicep isolation especially for lower fibres.",
+    video:"https://www.youtube.com/watch?v=fIWP-FRFNU0" },
+  { id:"concentration",name:"Concentration Curl",       unit:"kg each",   bw:false, group:"Arms",      baseline:[10,14],   t6:[16,20],   t18:[22,28],
+    desc:"Sit, brace elbow on inner thigh, curl dumbbell to shoulder. Maximum isolation. Great peak contraction for biceps.",
+    video:"https://www.youtube.com/watch?v=0AUGkch3tzc" },
+  { id:"cabletricep", name:"Cable Overhead Tricep Ext", unit:"kg",        bw:false, group:"Arms",      baseline:[15,22],   t6:[25,35],   t18:[38,48],
+    desc:"Face away from cable, extend arms overhead from behind head. Long head tricep emphasis. Keep elbows narrow.",
+    video:"https://www.youtube.com/watch?v=YbX7Wd8jQ-Q" },
+  // ── Legs ──
+  { id:"legpress",    name:"Leg Press",                 unit:"kg",        bw:false, group:"Legs",      baseline:[100,140], t6:[160,180], t18:[200,220],
+    desc:"Feet shoulder width on platform. Lower sled until 90° knee angle. Press through heels. Hip-friendly alternative to squats.",
+    video:"https://www.youtube.com/watch?v=IZxyjW7MPJQ" },
+  { id:"rdl",         name:"Romanian Deadlift",         unit:"kg",        bw:false, group:"Legs",      baseline:[50,65],   t6:[80,90],   t18:[100,110],
+    desc:"Hinge at hips pushing them back, bar slides down legs. Feel hamstring stretch, drive hips forward to return. Keep back flat.",
+    video:"https://www.youtube.com/watch?v=2SHsk9AzdjA" },
+  { id:"legext",      name:"Leg Extension",             unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
+    desc:"Sit in machine, extend legs until straight squeezing quads. Lower slowly. Pure quad isolation. Good for knee rehab.",
+    video:"https://www.youtube.com/watch?v=YyvSfVjQeL0" },
+  { id:"legcurl",     name:"Lying Leg Curl",            unit:"kg",        bw:false, group:"Legs",      baseline:[35,50],   t6:[60,75],   t18:[80,95],
+    desc:"Face down on machine, curl heels to glutes. Pause at top. Lower with control. Isolates hamstrings effectively.",
+    video:"https://www.youtube.com/watch?v=1Tq3QdYUuHs" },
+  { id:"calfpress",   name:"Calf Raise (Machine)",      unit:"kg",        bw:false, group:"Legs",      baseline:[60,80],   t6:[90,110],  t18:[120,140],
+    desc:"Full range of motion — deep stretch at bottom, full contraction at top. Slow tempo essential. Targets gastrocnemius.",
+    video:"https://www.youtube.com/watch?v=gwLzBJYoWlI" },
+  { id:"hipabduct",   name:"Hip Abductor (Machine)",    unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
+    desc:"Sit in machine, push legs apart against resistance. Targets outer glutes and hip abductors. Good for hip stability.",
+    video:"https://www.youtube.com/watch?v=lPt35_O_ZPg" },
+  { id:"hipadduct",   name:"Hip Adductor (Machine)",    unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
+    desc:"Sit with legs apart, squeeze legs together against resistance. Targets inner thighs. Keep core engaged.",
+    video:"https://www.youtube.com/watch?v=Uli2ZOtZl_s" },
+  { id:"goblet",      name:"Goblet Squat",              unit:"kg",        bw:false, group:"Legs",      baseline:[20,30],   t6:[35,45],   t18:[50,60],
+    desc:"Hold dumbbell at chest, squat deep with elbows inside knees. Hip-friendly squat variation. Great for mobility.",
+    video:"https://www.youtube.com/watch?v=MeIiIdhvXT4" },
+  { id:"seatedcalf",  name:"Seated Calf Raise",         unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
+    desc:"Weight on knees, raise heels as high as possible. Targets soleus (deeper calf muscle). Essential for full calf development.",
+    video:"https://www.youtube.com/watch?v=JbyjNymZOt0" },
+  { id:"stiffleg",    name:"Stiff Leg Deadlift",        unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
+    desc:"Minimal knee bend, hinge at hip lowering bar to mid-shin. Greater hamstring stretch than RDL. Keep back neutral.",
+    video:"https://www.youtube.com/watch?v=1uDiW5--rAE" },
+  // ── Core ──
+  { id:"crunches",    name:"Crunches",                  unit:"reps",      bw:true,  group:"Core",      baseline:[15,25],   t6:[35,50],   t18:[60,80],
+    desc:"Lie on back, hands by temples, curl shoulders off floor contracting abs. Don't pull neck. Lower with control.",
+    video:"https://www.youtube.com/watch?v=Xyd_fa5zoEU" },
+  { id:"plank",       name:"Plank",                     unit:"seconds",   bw:true,  group:"Core",      baseline:[20,40],   t6:[60,90],   t18:[120,180],
+    desc:"Forearms and toes on floor, body in straight line. Squeeze glutes and abs. Don't let hips sag or pike.",
+    video:"https://www.youtube.com/watch?v=ASdvN_XEl_c" },
+  { id:"legrise",     name:"Hanging Leg Raise",         unit:"reps",      bw:true,  group:"Core",      baseline:[8,12],    t6:[15,20],   t18:[25,30],
+    desc:"Hang from bar, raise legs to parallel (or higher). Control the swing. Targets lower abs and hip flexors.",
+    video:"https://www.youtube.com/watch?v=hdng3Nm1x_E" },
+  { id:"abcrunch",    name:"Ab Crunch (Machine)",       unit:"kg",        bw:false, group:"Core",      baseline:[30,45],   t6:[55,70],   t18:[75,90],
+    desc:"Adjust weight, crunch forward against resistance. More load than bodyweight crunches. Targets rectus abdominis.",
+    video:"https://www.youtube.com/watch?v=yprow3BdDxE" },
+  { id:"cabletwist",  name:"Cable Wood Chop",           unit:"kg",        bw:false, group:"Core",      baseline:[10,15],   t6:[18,25],   t18:[28,35],
+    desc:"Set cable high, pull diagonally across body rotating trunk. Targets obliques and rotational core strength.",
+    video:"https://www.youtube.com/watch?v=pAplQXjUOh0" },
+  { id:"russian",     name:"Russian Twist",             unit:"reps",      bw:true,  group:"Core",      baseline:[15,20],   t6:[25,35],   t18:[40,50],
+    desc:"Sit at 45°, feet off floor, rotate torso side to side. Add weight for progression. Targets obliques.",
+    video:"https://www.youtube.com/watch?v=wkD8rjkodUI" },
+  { id:"deadbug",     name:"Dead Bug",                  unit:"reps",      bw:true,  group:"Core",      baseline:[8,12],    t6:[15,20],   t18:[25,30],
+    desc:"Lie on back, opposite arm and leg extend simultaneously while keeping lower back pressed to floor. Excellent core stability.",
+    video:"https://www.youtube.com/watch?v=g_BYB0R-4Ws" },
+  { id:"sideplankleft", name:"Side Plank (Left)",       unit:"seconds",   bw:true,  group:"Core",      baseline:[15,25],   t6:[35,50],   t18:[60,90],
+    desc:"Lie on side, lift hips off floor supported by forearm and feet. Keep body in straight line. Targets obliques.",
+    video:"https://www.youtube.com/watch?v=_6vjo5yFo1U" },
 ];
 
 const DAYS      = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -587,7 +698,7 @@ const Onboarding = ({ onComplete }) => {
 // ─────────────────────────────────────────────
 // Exercise card (reused in lists)
 // ─────────────────────────────────────────────
-const ExerciseCard = ({ ex, latestEntry, logCount, scheduledDays, isFav, onTap, onFavToggle, actionSlot }) => {
+const ExerciseCard = ({ ex, latestEntry, logCount, scheduledDays, isFav, onTap, onFavToggle, onInfo, actionSlot }) => {
   const pct = progressPct(latestEntry, ex);
   const bc  = barColor(pct);
   const val = latestEntry ? (ex.bw ? latestEntry.reps : latestEntry.weight) : null;
@@ -602,6 +713,7 @@ const ExerciseCard = ({ ex, latestEntry, logCount, scheduledDays, isFav, onTap, 
           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
             <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{ex.name}</span>
             {ex.custom && <Chip bg={C.input} color={C.purple}>custom</Chip>}
+            {ex.desc && <button onClick={e=>{e.stopPropagation();onInfo&&onInfo(ex);}} style={{ background:"none", border:"none", color:C.dim, fontSize:13, cursor:"pointer", padding:0, lineHeight:1 }} title="Exercise info">ℹ</button>}
           </div>
           <div style={{ fontSize:11, color:C.muted, display:"flex", gap:6, flexWrap:"wrap" }}>
             {logCount > 0 && <span>{logCount} session{logCount !== 1 ? "s" : ""}</span>}
@@ -642,6 +754,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
   const [chartType, setChartType] = useState("line");
   const [timeFilter, setTimeFilter] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [showInfo,      setShowInfo]      = useState(false);
 
   const filtered = filterTime(entries, timeFilter);
   const latest   = entries.length ? entries[entries.length - 1] : null;
@@ -682,6 +795,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
           <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{ex.name}</span>
           {ex.custom && <Chip bg={C.input} color={C.purple}>custom</Chip>}
           {isPB && pbValue && <Chip bg="#2a2000" color={C.amber}>🏆 PB {pbValue}{ex.bw?` ${ex.unit}`:"kg"}</Chip>}
+          {ex.desc && <button onClick={()=>setShowInfo(true)} style={{ background:"none", border:"none", color:C.muted, fontSize:13, cursor:"pointer", padding:0 }}>ℹ</button>}
         </div>
         <div style={{ display:"flex", gap:6 }}>
           <button onClick={onFavToggle} style={{ background:"none", border:"none", fontSize:18, cursor:"pointer", color:isFav ? C.amber : C.dim, lineHeight:1 }}>
@@ -848,7 +962,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
 // ─────────────────────────────────────────────
 // Weekly Planner
 // ─────────────────────────────────────────────
-const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs }) => {
+const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, onApplyTemplate }) => {
   const [activeDay, setActiveDay]     = useState(todayName());
   const [showPicker, setShowPicker]   = useState(false);
   const [pickerGroup, setPickerGroup] = useState("All");
@@ -879,7 +993,10 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs }) 
 
   return (
     <div>
-      {/* Day selector */}
+      {/* Templates panel */}
+    <TemplatesPanel currentPlan={plan} onApply={onApplyTemplate} />
+
+    {/* Day selector */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:16 }}>
         {DAYS.map((d, i) => {
           const isToday = d === todayName();
@@ -909,6 +1026,9 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs }) 
       </div>
 
       {/* Exercises for this day */}
+      {/* Warmup card for this day */}
+      <WarmupCard dayExercises={dayList} exercises={exercises} />
+
       {dayList.length === 0 ? (
         <Card style={{ textAlign:"center", color:C.dim, padding:"28px 16px" }}>
           Rest day — nothing scheduled.<br/>
@@ -1571,6 +1691,300 @@ function calcStreaks(logs, plan, exercises) {
 }
 
 
+
+// ─────────────────────────────────────────────
+// WARM-UPS per session type
+// ─────────────────────────────────────────────
+const WARMUPS = {
+  push: [
+    { name:"Arm Circles",         duration:"30 secs each direction", desc:"Large arm circles forward and backward to mobilise shoulder joints." },
+    { name:"Band Pull-Aparts",    duration:"2 × 15 reps",            desc:"Stretch band between hands at chest height, pull apart to sides." },
+    { name:"Push-Up to Downdog",  duration:"2 × 8 reps",             desc:"From push-up position, push up then shift to downward dog. Mobilises chest and shoulders." },
+    { name:"Light Bench Press",   duration:"2 × 15 reps (empty bar)", desc:"Empty bar or very light weight, full range of motion to warm up pec fibres." },
+  ],
+  pull: [
+    { name:"Shoulder Dislocations", duration:"2 × 10 reps",           desc:"Pass resistance band overhead and behind, wide grip. Mobilises thoracic spine and shoulders." },
+    { name:"Cat-Cow Stretch",       duration:"1 min",                  desc:"On all fours, alternate arching and rounding the spine. Warms up spinal erectors." },
+    { name:"Band Lat Pulldown",     duration:"2 × 15 reps",            desc:"Light band overhead pull. Activates lats before heavier work." },
+    { name:"Dead Hang",             duration:"2 × 20 secs",            desc:"Hang from pull-up bar relaxed. Decompresses spine and stretches lats." },
+  ],
+  legs: [
+    { name:"Leg Swings (front/back)", duration:"20 each leg",        desc:"Hold support, swing leg forward and backward. Hip joint mobilisation." },
+    { name:"Leg Swings (side)",       duration:"20 each leg",        desc:"Swing leg across body side to side. Adductor and abductor warm-up." },
+    { name:"Bodyweight Squats",       duration:"2 × 15 reps",        desc:"Full range slow squats focusing on form. Activates quads and glutes." },
+    { name:"Hip Circles",             duration:"10 each direction",  desc:"Hands on hips, large hip circles each way. Essential pre-leg press." },
+    { name:"Light Leg Press",         duration:"1 × 20 reps (light)", desc:"50% of working weight, full range of motion to warm up knee joints." },
+  ],
+  fullbody: [
+    { name:"5 min Light Cardio",    duration:"5 mins",               desc:"Brisk walk, light bike or cross trainer. Elevates heart rate and body temperature." },
+    { name:"World's Greatest Stretch", duration:"5 each side",      desc:"Lunge forward, rotate torso and reach overhead. Full body mobility in one move." },
+    { name:"Bodyweight Squats",     duration:"15 reps",              desc:"Activates lower body, warms up hip and knee joints." },
+    { name:"Push-Up",               duration:"10 reps",              desc:"Upper body activation. Focus on controlled movement." },
+    { name:"Band Pull-Aparts",      duration:"15 reps",              desc:"Activates rear delts and rotator cuff before pressing movements." },
+  ],
+  core: [
+    { name:"Cat-Cow",               duration:"1 min",                desc:"Spinal mobility and core activation. Slow and controlled." },
+    { name:"Dead Bug",              duration:"2 × 8 each side",      desc:"Lower back stability and core activation before heavy lifts." },
+    { name:"Plank Hold",            duration:"30 secs",              desc:"Activates transverse abdominis and stabilisers." },
+  ],
+};
+
+// Get warmup for a day based on its exercises
+function getWarmupForDay(dayExercises, allExercises) {
+  if (!dayExercises?.length) return [];
+  const exMap = Object.fromEntries(allExercises.map(e => [e.id, e]));
+  const groups = dayExercises.map(id => exMap[id]?.group || "").filter(Boolean);
+  // Determine dominant session type
+  const hasLegs  = groups.some(g => g === "Legs");
+  const hasChest = groups.some(g => g === "Chest");
+  const hasBack  = groups.some(g => g === "Back");
+  const hasCore  = groups.every(g => g === "Core");
+  if (hasCore)  return WARMUPS.core;
+  if (hasLegs && !hasChest && !hasBack) return WARMUPS.legs;
+  if (hasChest && !hasBack) return WARMUPS.push;
+  if (hasBack  && !hasChest) return WARMUPS.pull;
+  return WARMUPS.fullbody;
+}
+
+// ─────────────────────────────────────────────
+// WORKOUT TEMPLATES
+// ─────────────────────────────────────────────
+const WORKOUT_TEMPLATES = [
+  {
+    id:"ppl_3day",
+    name:"Push / Pull / Legs",
+    desc:"Classic 3-day split. Push on Mon, Pull on Wed, Legs on Fri. Best for building muscle with adequate recovery.",
+    tag:"Hypertrophy",
+    days:3,
+    plan:{
+      Monday:    ["bench","incline","chestpress","shoulder","triceps","skullcrush"],
+      Tuesday:   [],
+      Wednesday: ["pulldown","seatedrow","dbrow","bicepcurl","dbcurl","hammer"],
+      Thursday:  [],
+      Friday:    ["legpress","rdl","legext","legcurl","calfpress","crunches"],
+      Saturday:  [],
+      Sunday:    [],
+    }
+  },
+  {
+    id:"ppl_6day",
+    name:"Push / Pull / Legs ×2",
+    desc:"6-day PPL for advanced lifters. Each muscle group hit twice per week. High volume, high frequency.",
+    tag:"Advanced",
+    days:6,
+    plan:{
+      Monday:    ["bench","incline","shoulder","lateraise","triceps","skullcrush"],
+      Tuesday:   ["pulldown","seatedrow","dbrow","bicepcurl","dbcurl","hammer"],
+      Wednesday: ["legpress","rdl","legext","legcurl","calfpress","crunches"],
+      Thursday:  ["chestpress","cablefly","reardelt","frontraise","cabletricep","diptricep"],
+      Friday:    ["tbar","pullup","facepull","preacher","concentration","hammer"],
+      Saturday:  ["goblet","stiffleg","hipabduct","hipadduct","seatedcalf","plank"],
+      Sunday:    [],
+    }
+  },
+  {
+    id:"upper_lower",
+    name:"Upper / Lower Split",
+    desc:"4-day split alternating upper and lower body. Good balance of frequency and recovery.",
+    tag:"Strength",
+    days:4,
+    plan:{
+      Monday:    ["bench","pulldown","shoulder","row","bicepcurl","triceps"],
+      Tuesday:   ["legpress","rdl","legext","legcurl","calfpress","crunches"],
+      Wednesday: [],
+      Thursday:  ["incline","seatedrow","lateraise","dbrow","preacher","skullcrush"],
+      Friday:    ["goblet","stiffleg","hipabduct","hipadduct","seatedcalf","plank"],
+      Saturday:  [],
+      Sunday:    [],
+    }
+  },
+  {
+    id:"fullbody_3day",
+    name:"Full Body 3×/Week",
+    desc:"Hit every muscle group 3 times per week. Ideal for beginners and those short on time.",
+    tag:"Beginner",
+    days:3,
+    plan:{
+      Monday:    ["bench","pulldown","shoulder","legpress","rdl","crunches"],
+      Tuesday:   [],
+      Wednesday: ["incline","seatedrow","lateraise","goblet","legcurl","plank"],
+      Thursday:  [],
+      Friday:    ["chestpress","row","shoulder","legpress","stiffleg","legrise"],
+      Saturday:  [],
+      Sunday:    [],
+    }
+  },
+  {
+    id:"bro_split",
+    name:"Classic Bro Split",
+    desc:"One muscle group per day. Chest Mon, Back Tue, Shoulders Wed, Arms Thu, Legs Fri. High volume per session.",
+    tag:"Hypertrophy",
+    days:5,
+    plan:{
+      Monday:    ["bench","incline","chestpress","pecfly","cablefly","dbflat"],
+      Tuesday:   ["pulldown","seatedrow","dbrow","tbar","facepull","straightarm"],
+      Wednesday: ["shoulder","lateraise","frontraise","reardelt","shrugs","upright"],
+      Thursday:  ["bicepcurl","dbcurl","hammer","preacher","triceps","skullcrush"],
+      Friday:    ["legpress","rdl","legext","legcurl","calfpress","hipabduct"],
+      Saturday:  [],
+      Sunday:    [],
+    }
+  },
+  {
+    id:"home_gym",
+    name:"Home Gym Dumbbells",
+    desc:"Designed for home gym with dumbbells only. 4 days, full coverage, no machines needed.",
+    tag:"Home",
+    days:4,
+    plan:{
+      Monday:    ["dbflat","incline","lateraise","frontraise","hammer","deadbug"],
+      Tuesday:   ["dbrow","stiffleg","goblet","seatedcalf","concentration","russian"],
+      Wednesday: [],
+      Thursday:  ["dbflat","reardelt","arnold","dbcurl","cabletricep","plank"],
+      Friday:    ["dbrow","rdl","goblet","hipadduct","hammer","sideplankleft"],
+      Saturday:  [],
+      Sunday:    [],
+    }
+  },
+];
+
+// ─────────────────────────────────────────────
+// Warmup Card Component
+// ─────────────────────────────────────────────
+const WarmupCard = ({ dayExercises, exercises }) => {
+  const [open, setOpen] = useState(false);
+  const warmup = getWarmupForDay(dayExercises, exercises);
+  if (!warmup.length || !dayExercises?.length) return null;
+  return (
+    <div style={{ background:"linear-gradient(135deg,#1a2a1a,#131a13)", border:"1px solid #2a4a2a", borderRadius:10, marginBottom:10, overflow:"hidden" }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", cursor:"pointer" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>🔥</span>
+          <div>
+            <div style={{ fontSize:12, fontWeight:700, color:"#22c55e" }}>Warm Up</div>
+            <div style={{ fontSize:10, color:"#6b7280" }}>{warmup.length} exercises · tap to expand</div>
+          </div>
+        </div>
+        <span style={{ color:"#22c55e", fontSize:14 }}>{open?"▲":"▼"}</span>
+      </div>
+      {open && (
+        <div style={{ padding:"0 14px 14px" }}>
+          {warmup.map((w,i) => (
+            <div key={i} style={{ padding:"8px 0", borderTop:"1px solid #2a4a2a" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{w.name}</div>
+                <div style={{ fontSize:10, color:"#22c55e", fontWeight:600, flexShrink:0, marginLeft:8 }}>{w.duration}</div>
+              </div>
+              <div style={{ fontSize:11, color:"#6b7280", marginTop:3, lineHeight:1.5 }}>{w.desc}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Exercise Info Modal
+// ─────────────────────────────────────────────
+const ExerciseInfoModal = ({ ex, onClose }) => (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.8)", zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}
+    onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{ background:"#1a1a2e", borderRadius:"16px 16px 0 0", padding:"20px 20px 40px", width:"100%", maxWidth:540 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={{ fontSize:14, fontWeight:800, color:"#e2e8f0" }}>{ex.name}</div>
+        <button onClick={onClose} style={{ background:"none", border:"none", color:"#6b7280", fontSize:22, cursor:"pointer" }}>×</button>
+      </div>
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+        <span style={{ fontSize:10, background:"#1e1e35", borderRadius:6, padding:"3px 8px", color:"#a855f7", fontWeight:600 }}>{ex.group}</span>
+        <span style={{ fontSize:10, background:"#1e1e35", borderRadius:6, padding:"3px 8px", color:"#6b7280", fontWeight:600 }}>{ex.unit}</span>
+        {ex.bw && <span style={{ fontSize:10, background:"#1e1e35", borderRadius:6, padding:"3px 8px", color:"#6366f1", fontWeight:600 }}>Bodyweight</span>}
+      </div>
+      {ex.desc && (
+        <div style={{ fontSize:13, color:"#9ca3af", lineHeight:1.7, marginBottom:16, background:"#13132a", borderRadius:8, padding:"12px 14px" }}>
+          {ex.desc}
+        </div>
+      )}
+      <div style={{ fontSize:11, fontWeight:700, color:"#6b7280", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>Benchmarks</div>
+      <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
+        <span style={{ fontSize:11, background:"#1e2a1e", borderRadius:6, padding:"4px 10px", color:"#e2e8f0", fontWeight:600 }}>📍 Base: {ex.baseline[0]}–{ex.baseline[1]}{ex.bw?` ${ex.unit}`:"kg"}</span>
+        <span style={{ fontSize:11, background:"#2a2420", borderRadius:6, padding:"4px 10px", color:"#e2e8f0", fontWeight:600 }}>🎯 6mo: {ex.t6[0]}–{ex.t6[1]}{ex.bw?` ${ex.unit}`:"kg"}</span>
+        <span style={{ fontSize:11, background:"#22203a", borderRadius:6, padding:"4px 10px", color:"#e2e8f0", fontWeight:600 }}>🏆 Peak: {ex.t18[0]}–{ex.t18[1]}{ex.bw?` ${ex.unit}`:"kg"}</span>
+      </div>
+      {ex.video && (
+        <a href={ex.video} target="_blank" rel="noopener noreferrer"
+          style={{ display:"flex", alignItems:"center", gap:10, background:"#ff000015", border:"1px solid #ff000030", borderRadius:10, padding:"12px 16px", textDecoration:"none" }}>
+          <span style={{ fontSize:24 }}>▶️</span>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:"#e2e8f0" }}>Watch on YouTube</div>
+            <div style={{ fontSize:11, color:"#6b7280" }}>See correct form and technique</div>
+          </div>
+        </a>
+      )}
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────
+// Workout Templates Panel
+// ─────────────────────────────────────────────
+const TemplatesPanel = ({ currentPlan, onApply }) => {
+  const [open, setOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
+  const TAG_COLORS = {
+    "Hypertrophy":"#6366f1", "Advanced":"#ef4444", "Strength":"#f59e0b",
+    "Beginner":"#22c55e", "Home":"#a855f7"
+  };
+  return (
+    <div style={{ background:"#1a1a2e", border:"1px solid #2d2d4a", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", cursor:"pointer" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>📋</span>
+          <div>
+            <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>Workout Templates</div>
+            <div style={{ fontSize:10, color:"#6b7280" }}>{WORKOUT_TEMPLATES.length} plans — tap to browse and swap</div>
+          </div>
+        </div>
+        <span style={{ color:"#6b7280", fontSize:14 }}>{open?"▲":"▼"}</span>
+      </div>
+      {open && (
+        <div style={{ borderTop:"1px solid #2d2d4a" }}>
+          {WORKOUT_TEMPLATES.map(t => (
+            <div key={t.id} style={{ padding:"12px 14px", borderBottom:"1px solid #2d2d4a" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{t.name}</span>
+                    <span style={{ fontSize:9, background:TAG_COLORS[t.tag]+"22", color:TAG_COLORS[t.tag], borderRadius:4, padding:"2px 6px", fontWeight:700 }}>{t.tag}</span>
+                  </div>
+                  <div style={{ fontSize:11, color:"#6b7280", lineHeight:1.5 }}>{t.desc}</div>
+                  <div style={{ fontSize:10, color:"#4b4b6b", marginTop:4 }}>{t.days} training days/week</div>
+                </div>
+              </div>
+              {confirmId === t.id ? (
+                <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                  <button onClick={()=>setConfirmId(null)}
+                    style={{ flex:1, background:"#1e1e35", border:"none", borderRadius:7, padding:"8px", color:"#e2e8f0", fontSize:11, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+                  <button onClick={()=>{ onApply(t.plan); setConfirmId(null); setOpen(false); }}
+                    style={{ flex:1, background:"linear-gradient(90deg,#6366f1,#a855f7)", border:"none", borderRadius:7, padding:"8px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Apply plan</button>
+                </div>
+              ) : (
+                <button onClick={()=>setConfirmId(t.id)}
+                  style={{ marginTop:8, background:"#1e1e35", border:"1px solid #3d3d5c", borderRadius:7, padding:"7px 14px", color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  Use this plan →
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 // ─────────────────────────────────────────────
 // MUSCLE MAP — exercise-to-muscle mapping
 // ─────────────────────────────────────────────
@@ -2207,6 +2621,7 @@ export default function App() {
   const [navHistory,  setNavHistory]  = useState([]);
   const [showAdd,     setShowAdd]     = useState(false);
   const [groupFilter, setGroupFilter] = useState("All");
+  const [infoEx,      setInfoEx]      = useState(null);
   const [chartType,   setChartType]   = useState("line");
   const [timeFilter,  setTimeFilter]  = useState(null);
 
@@ -2431,7 +2846,7 @@ export default function App() {
                 <div style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>This plan was built for your goal: <span style={{ color:C.text, fontWeight:600 }}>{profile.goal}</span>. Tap any day to customise — add, remove or reorder exercises freely.</div>
               </div>
             </div>
-            <WeeklyPlanner exercises={exercises} plan={plan} onPlanChange={persistPlan} onOpenExercise={id => openExercise(id, "Plan")} logs={logs} />
+            <WeeklyPlanner exercises={exercises} plan={plan} onPlanChange={persistPlan} onOpenExercise={id => openExercise(id, "Plan")} logs={logs} onApplyTemplate={async p => { await persistPlan(p); }} />
           </>
         )}
 
@@ -2467,6 +2882,7 @@ export default function App() {
                   isFav={favourites.includes(ex.id)}
                   onTap={() => openExercise(ex.id, "Exercises")}
                   onFavToggle={() => toggleFav(ex.id)}
+                  onInfo={ex => setInfoEx(ex)}
                 />
               ))
             }
@@ -2647,6 +3063,7 @@ export default function App() {
         </nav>
       )}
 
+      {infoEx && <ExerciseInfoModal ex={infoEx} onClose={() => setInfoEx(null)} />}
       {showAdd && <AddExerciseModal onSave={async ex => {
         await saveCustomExercise(user.id, ex);
         setExercises(prev => [...prev, ex]);
