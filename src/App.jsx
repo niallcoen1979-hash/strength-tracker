@@ -280,12 +280,19 @@ async function loadUserData(userId) {
 }
 
 async function saveProfile(userId, profile) {
-  await supabase.from("profiles").upsert({
-    id: userId, name: profile.name, age: parseInt(profile.age) || null,
-    weight_kg: parseFloat(profile.weight) || null, height_cm: parseFloat(profile.height) || null,
-    goal: profile.goal, experience: profile.experience, training_days: profile.trainingDays || {},
-    email_consent: profile.emailConsent || false, email_frequency: profile.emailFrequency || "weekly",
+  const { error } = await supabase.from("profiles").upsert({
+    id: userId,
+    name: profile.name || null,
+    age: parseInt(profile.age) || null,
+    weight_kg: parseFloat(profile.weight || profile.weight_kg) || null,
+    height_cm: parseFloat(profile.height || profile.height_cm) || null,
+    goal: profile.goal || null,
+    experience: profile.experience || null,
+    training_days: profile.trainingDays || profile.training_days || {},
+    email_consent: profile.emailConsent || profile.email_consent || false,
+    email_frequency: profile.emailFrequency || profile.email_frequency || "weekly",
   });
+  if (error) console.error("saveProfile error:", error);
 }
 
 async function saveSession(userId, exId, entry) {
@@ -962,7 +969,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
 // ─────────────────────────────────────────────
 // Weekly Planner
 // ─────────────────────────────────────────────
-const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, onApplyTemplate }) => {
+const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, profile, onApplyTemplate }) => {
   const [activeDay, setActiveDay]     = useState(todayName());
   const [showPicker, setShowPicker]   = useState(false);
   const [pickerGroup, setPickerGroup] = useState("All");
@@ -994,7 +1001,7 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, on
   return (
     <div>
       {/* Templates panel */}
-    <TemplatesPanel currentPlan={plan} onApply={onApplyTemplate} />
+    <TemplatesPanel currentPlan={plan} onApply={onApplyTemplate} trainingDays={profile?.trainingDays} />
 
     {/* Day selector */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:16 }}>
@@ -1015,9 +1022,23 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, on
 
       {/* Day heading */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, marginTop:4 }}>
-        <div style={{ fontSize:14, fontWeight:800 }}>
-          {activeDay}
-          {activeDay === todayName() && <span style={{ fontSize:10, color:C.green, fontWeight:600, marginLeft:8 }}>Today</span>}
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ fontSize:14, fontWeight:800 }}>
+            {activeDay}
+            {activeDay === todayName() && <span style={{ fontSize:10, color:C.green, fontWeight:600, marginLeft:8 }}>Today</span>}
+          </div>
+          {(() => {
+            const gymType = profile?.trainingDays?.[activeDay];
+            const gymMeta = GYM_TYPES.find(g=>g.id===gymType);
+            return gymMeta && gymType !== "rest" ? (
+              <span style={{ fontSize:11, color:C.muted, display:"flex", alignItems:"center", gap:3 }}>
+                <span>{gymMeta.icon}</span>
+                <span style={{ fontSize:10 }}>{gymMeta.label}</span>
+              </span>
+            ) : gymType === "rest" ? (
+              <span style={{ fontSize:10, color:C.dim }}>😴 Rest</span>
+            ) : null;
+          })()}
         </div>
         <button onClick={() => setShowPicker(true)}
           style={{ background:C.input, border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 10px", color:C.muted, fontSize:10, fontWeight:600, cursor:"pointer" }}>
@@ -1929,55 +1950,105 @@ const ExerciseInfoModal = ({ ex, onClose }) => (
 // ─────────────────────────────────────────────
 // Workout Templates Panel
 // ─────────────────────────────────────────────
-const TemplatesPanel = ({ currentPlan, onApply }) => {
-  const [open, setOpen] = useState(false);
+const TemplatesPanel = ({ currentPlan, onApply, trainingDays }) => {
+  const [open,      setOpen]      = useState(false);
+  const [previewId, setPreviewId] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const TAG_COLORS = {
     "Hypertrophy":"#6366f1", "Advanced":"#ef4444", "Strength":"#f59e0b",
     "Beginner":"#22c55e", "Home":"#a855f7"
   };
+  const previewTemplate = previewId ? WORKOUT_TEMPLATES.find(t => t.id === previewId) : null;
+
   return (
     <div style={{ background:"#1a1a2e", border:"1px solid #2d2d4a", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
-      <div onClick={()=>setOpen(o=>!o)}
+      <div onClick={()=>{ setOpen(o=>!o); setPreviewId(null); setConfirmId(null); }}
         style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", cursor:"pointer" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <span style={{ fontSize:16 }}>📋</span>
           <div>
             <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>Workout Templates</div>
-            <div style={{ fontSize:10, color:"#6b7280" }}>{WORKOUT_TEMPLATES.length} plans — tap to browse and swap</div>
+            <div style={{ fontSize:10, color:"#6b7280" }}>{WORKOUT_TEMPLATES.length} plans — tap to browse</div>
           </div>
         </div>
         <span style={{ color:"#6b7280", fontSize:14 }}>{open?"▲":"▼"}</span>
       </div>
-      {open && (
+
+      {open && !previewTemplate && (
         <div style={{ borderTop:"1px solid #2d2d4a" }}>
           {WORKOUT_TEMPLATES.map(t => (
             <div key={t.id} style={{ padding:"12px 14px", borderBottom:"1px solid #2d2d4a" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
-                    <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{t.name}</span>
-                    <span style={{ fontSize:9, background:TAG_COLORS[t.tag]+"22", color:TAG_COLORS[t.tag], borderRadius:4, padding:"2px 6px", fontWeight:700 }}>{t.tag}</span>
-                  </div>
-                  <div style={{ fontSize:11, color:"#6b7280", lineHeight:1.5 }}>{t.desc}</div>
-                  <div style={{ fontSize:10, color:"#4b4b6b", marginTop:4 }}>{t.days} training days/week</div>
-                </div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{t.name}</span>
+                <span style={{ fontSize:9, background:TAG_COLORS[t.tag]+"22", color:TAG_COLORS[t.tag], borderRadius:4, padding:"2px 6px", fontWeight:700 }}>{t.tag}</span>
               </div>
-              {confirmId === t.id ? (
-                <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                  <button onClick={()=>setConfirmId(null)}
-                    style={{ flex:1, background:"#1e1e35", border:"none", borderRadius:7, padding:"8px", color:"#e2e8f0", fontSize:11, fontWeight:600, cursor:"pointer" }}>Cancel</button>
-                  <button onClick={()=>{ onApply(t.plan); setConfirmId(null); setOpen(false); }}
-                    style={{ flex:1, background:"linear-gradient(90deg,#6366f1,#a855f7)", border:"none", borderRadius:7, padding:"8px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Apply plan</button>
-                </div>
-              ) : (
-                <button onClick={()=>setConfirmId(t.id)}
-                  style={{ marginTop:8, background:"#1e1e35", border:"1px solid #3d3d5c", borderRadius:7, padding:"7px 14px", color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  Use this plan →
+              <div style={{ fontSize:11, color:"#6b7280", lineHeight:1.5, marginBottom:4 }}>{t.desc}</div>
+              <div style={{ fontSize:10, color:"#4b4b6b", marginBottom:8 }}>{t.days} training days/week</div>
+              <div style={{ display:"flex", gap:7 }}>
+                <button onClick={()=>setPreviewId(t.id)}
+                  style={{ flex:1, background:"#1e1e35", border:"1px solid #3d3d5c", borderRadius:7, padding:"7px 0", color:"#9ca3af", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  👁 Preview
                 </button>
+                <button onClick={()=>setConfirmId(confirmId===t.id?null:t.id)}
+                  style={{ flex:1, background:"#1e1e35", border:"1px solid #3d3d5c", borderRadius:7, padding:"7px 0", color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  Use plan →
+                </button>
+              </div>
+              {confirmId === t.id && (
+                <div style={{ marginTop:8, background:"#13132a", borderRadius:8, padding:"10px 12px" }}>
+                  <div style={{ fontSize:11, color:"#f59e0b", marginBottom:8 }}>⚠️ This will replace your current plan. Are you sure?</div>
+                  <div style={{ display:"flex", gap:7 }}>
+                    <button onClick={()=>setConfirmId(null)}
+                      style={{ flex:1, background:"#1e1e35", border:"none", borderRadius:7, padding:"8px", color:"#e2e8f0", fontSize:11, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+                    <button onClick={()=>{ onApply(t.plan); setConfirmId(null); setOpen(false); }}
+                      style={{ flex:1, background:"linear-gradient(90deg,#6366f1,#a855f7)", border:"none", borderRadius:7, padding:"8px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Apply</button>
+                  </div>
+                </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Preview mode */}
+      {open && previewTemplate && (
+        <div style={{ borderTop:"1px solid #2d2d4a" }}>
+          <div style={{ padding:"10px 14px", borderBottom:"1px solid #2d2d4a", display:"flex", alignItems:"center", gap:8 }}>
+            <button onClick={()=>setPreviewId(null)}
+              style={{ background:"none", border:"none", color:"#a78bfa", fontSize:12, cursor:"pointer", fontWeight:600 }}>← Back</button>
+            <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{previewTemplate.name}</span>
+          </div>
+          {DAYS.map((day, i) => {
+            const dayExIds = previewTemplate.plan[day] || [];
+            const gymType = trainingDays?.[day];
+            const gymIcon = gymType === "gym" ? "🏋️" : gymType === "home" ? "🏠" : gymType === "dumbbells" ? "💪" : null;
+            return (
+              <div key={day} style={{ padding:"8px 14px", borderBottom:"1px solid #2d2d4a", display:"flex", gap:10, alignItems:"flex-start" }}>
+                <div style={{ minWidth:40, fontSize:10, fontWeight:700, color:dayExIds.length ? "#e2e8f0" : "#4b4b6b", paddingTop:2 }}>
+                  {DAY_SHORT[i]}{gymIcon && <span style={{ marginLeft:3 }}>{gymIcon}</span>}
+                </div>
+                <div style={{ flex:1 }}>
+                  {dayExIds.length === 0
+                    ? <span style={{ fontSize:10, color:"#4b4b6b" }}>Rest day</span>
+                    : <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                        {dayExIds.map(id => {
+                          const ex = SEED_EXERCISES.find(e=>e.id===id);
+                          return ex ? (
+                            <span key={id} style={{ fontSize:10, background:"#1e1e35", borderRadius:5, padding:"2px 7px", color:"#9ca3af" }}>{ex.name}</span>
+                          ) : null;
+                        })}
+                      </div>
+                  }
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ padding:"12px 14px" }}>
+            <button onClick={()=>{ setConfirmId(previewTemplate.id); setPreviewId(null); }}
+              style={{ width:"100%", background:"linear-gradient(90deg,#6366f1,#a855f7)", border:"none", borderRadius:8, padding:"11px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              Use this plan →
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -2650,7 +2721,22 @@ export default function App() {
 
   const loadAndSetData = async (userId) => {
     const data = await loadUserData(userId);
-    if (data.profile)         setProfile(data.profile);
+    if (data.profile) {
+      // Map DB column names back to app field names
+      const p = data.profile;
+      setProfile({
+        name:          p.name || "",
+        age:           p.age || "",
+        weight:        p.weight_kg || "",
+        height:        p.height_cm || "",
+        goal:          p.goal || GOALS[0],
+        experience:    p.experience || EXP[1],
+        trainingDays:  p.training_days || {},
+        emailConsent:  p.email_consent || false,
+        emailFrequency:p.email_frequency || "weekly",
+        email:         p.email || "",
+      });
+    }
     if (data.logs)            setLogs(data.logs);
     if (data.customEx?.length) setExercises([...SEED_EXERCISES, ...data.customEx.map(e => ({ ...e, bw:e.bodyweight, group:e.exercise_group, custom:true }))]);
     if (data.plan)            setPlan(data.plan);
@@ -2755,12 +2841,11 @@ export default function App() {
   const favExList  = exercises.filter(e => favourites.includes(e.id));
 
   const TABS = [
-    { id:"dashboard", icon:"🏠", label:"Home"    },
-    { id:"plan",      icon:"📅", label:"Plan"    },
-    { id:"exercises", icon:"💪", label:"Exs"     },
-    { id:"overview",  icon:"📈", label:"Charts"  },
-    { id:"stats",     icon:"⭐", label:"Stats"   },
-    { id:"profile",   icon:"👤", label:"Profile" },
+    { id:"dashboard", icon:"🏠", label:"Home"   },
+    { id:"plan",      icon:"📅", label:"Plan"   },
+    { id:"exercises", icon:"💪", label:"Exs"    },
+    { id:"overview",  icon:"📈", label:"Charts" },
+    { id:"stats",     icon:"⭐", label:"Stats"  },
   ];
 
   const profileSub = [
@@ -2790,7 +2875,11 @@ export default function App() {
           <div style={{ fontSize:14, fontWeight:800, background:C.grad, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", letterSpacing:"-0.01em" }}>
             ST
           </div>
-          <div style={{ fontSize:11, color:C.muted }}>{profileSub}</div>
+          <button onClick={()=>{ setDetailId(null); setActiveTab("profile"); setNavHistory([]); }}
+            style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, padding:0 }}>
+            <span style={{ fontSize:11, color:C.muted }}>{profileSub}</span>
+            <span style={{ fontSize:14 }}>👤</span>
+          </button>
         </div>
         {/* Breadcrumb trail */}
         <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:6, flexWrap:"nowrap", overflowX:"auto" }}>
@@ -2846,7 +2935,7 @@ export default function App() {
                 <div style={{ fontSize:11, color:C.muted, lineHeight:1.5 }}>This plan was built for your goal: <span style={{ color:C.text, fontWeight:600 }}>{profile.goal}</span>. Tap any day to customise — add, remove or reorder exercises freely.</div>
               </div>
             </div>
-            <WeeklyPlanner exercises={exercises} plan={plan} onPlanChange={persistPlan} onOpenExercise={id => openExercise(id, "Plan")} logs={logs} onApplyTemplate={async p => { await persistPlan(p); }} />
+            <WeeklyPlanner exercises={exercises} plan={plan} onPlanChange={persistPlan} onOpenExercise={id => openExercise(id, "Plan")} logs={logs} profile={profile} onApplyTemplate={async p => { await persistPlan(p); }} />
           </>
         )}
 
@@ -3019,7 +3108,7 @@ export default function App() {
           width:"100%", maxWidth:600,
           background:"linear-gradient(135deg,#1a1a2e,#16162a)",
           borderTop:`1px solid ${C.border}`,
-          display:"grid", gridTemplateColumns:"repeat(6,1fr)",
+          display:"grid", gridTemplateColumns:"repeat(5,1fr)",
           zIndex:50,
           paddingBottom:"env(safe-area-inset-bottom, 0px)",
         }}>
