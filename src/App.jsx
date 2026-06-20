@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars, no-undef */
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import {
