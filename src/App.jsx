@@ -720,7 +720,7 @@ const ExerciseCard = ({ ex, latestEntry, logCount, scheduledDays, isFav, onTap, 
           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
             <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{ex.name}</span>
             {ex.custom && <Chip bg={C.input} color={C.purple}>custom</Chip>}
-            {ex.desc && <button onClick={e=>{e.stopPropagation();onInfo&&onInfo(ex);}} style={{ background:"none", border:"none", color:C.dim, fontSize:13, cursor:"pointer", padding:0, lineHeight:1 }} title="Exercise info">ℹ</button>}
+            {ex.desc && <button onClick={e=>{e.stopPropagation();onInfo&&onInfo(ex);}} style={{ background:C.indigo+"22", border:`1px solid ${C.indigo}44`, borderRadius:4, color:C.indigo, fontSize:9, cursor:"pointer", padding:"2px 5px", lineHeight:1, fontWeight:700 }} title="Exercise info">INFO</button>}
           </div>
           <div style={{ fontSize:11, color:C.muted, display:"flex", gap:6, flexWrap:"wrap" }}>
             {logCount > 0 && <span>{logCount} session{logCount !== 1 ? "s" : ""}</span>}
@@ -802,7 +802,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
           <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{ex.name}</span>
           {ex.custom && <Chip bg={C.input} color={C.purple}>custom</Chip>}
           {isPB && pbValue && <Chip bg="#2a2000" color={C.amber}>🏆 PB {pbValue}{ex.bw?` ${ex.unit}`:"kg"}</Chip>}
-          {ex.desc && <button onClick={()=>setShowInfo(true)} style={{ background:"none", border:"none", color:C.muted, fontSize:13, cursor:"pointer", padding:0 }}>ℹ</button>}
+          {ex.desc && <button onClick={()=>setShowInfo(true)} style={{ background:C.indigo+"22", border:`1px solid ${C.indigo}44`, borderRadius:4, color:C.indigo, fontSize:9, cursor:"pointer", padding:"2px 5px", lineHeight:1, fontWeight:700 }}>INFO</button>}
         </div>
         <div style={{ display:"flex", gap:6 }}>
           <button onClick={onFavToggle} style={{ background:"none", border:"none", fontSize:18, cursor:"pointer", color:isFav ? C.amber : C.dim, lineHeight:1 }}>
@@ -1122,7 +1122,7 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, pr
 // ─────────────────────────────────────────────
 // Dashboard
 // ─────────────────────────────────────────────
-const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakData }) => {
+const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakData, calories, cardioSessions, profile }) => {
   const today = todayName();
   const todayPlan = plan[today] || [];
   const exMap = Object.fromEntries(exercises.map(e => [e.id, e]));
@@ -1201,6 +1201,9 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
 
       {/* Muscle map */}
       <MuscleMapPanel logs={logs} exercises={exercises} />
+
+      {/* Session summary */}
+      <SessionSummary logs={logs} exercises={exercises} calories={calories} cardioSessions={cardioSessions} profile={profile} />
 
       {/* Today's plan */}
       <SectionLabel>Today — {today}</SectionLabel>
@@ -1299,7 +1302,7 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
 // ─────────────────────────────────────────────
 // Profile Tab
 // ─────────────────────────────────────────────
-const ProfileTab = ({ profile, onUpdate }) => {
+const ProfileTab = ({ profile, onUpdate, onRegeneratePlan }) => {
   const [form, setForm] = useState({ ...EMPTY_PROFILE, ...profile });
   const [saved, setSaved] = useState(false);
   const [emailErr, setEmailErr] = useState("");
@@ -1371,6 +1374,10 @@ const ProfileTab = ({ profile, onUpdate }) => {
               </div>
             );
           })}
+        </div>
+        <div style={{ marginTop:12 }}>
+          <Btn onClick={() => { onRegeneratePlan && onRegeneratePlan(form); save(); }}>Save & regenerate plan</Btn>
+          <div style={{ fontSize:10, color:C.dim, textAlign:"center", marginTop:6 }}>Updates your training schedule and rebuilds your weekly plan</div>
         </div>
       </Card>
 
@@ -1570,7 +1577,7 @@ Be direct and specific with numbers. No fluff. Start with the action e.g. "Next 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1000,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -1611,6 +1618,307 @@ Be direct and specific with numbers. No fluff. Start with the action e.g. "Next 
       {error && !loading && (
         <div style={{ fontSize:11, color:C.red }}>{error}</div>
       )}
+    </div>
+  );
+};
+
+
+
+// ─────────────────────────────────────────────
+// CARDIO OPTIONS
+// ─────────────────────────────────────────────
+const CARDIO_TYPES = [
+  { id:"crosstrainer", name:"Cross Trainer",    icon:"🏃", cals_per_min:7  },
+  { id:"treadmill",    name:"Treadmill",        icon:"🏃", cals_per_min:8  },
+  { id:"bike",         name:"Stationary Bike",  icon:"🚴", cals_per_min:6  },
+  { id:"rowing",       name:"Rowing Machine",   icon:"🚣", cals_per_min:8  },
+  { id:"swimming",     name:"Swimming",         icon:"🏊", cals_per_min:7  },
+  { id:"stairmaster",  name:"Stair Master",     icon:"🪜", cals_per_min:9  },
+  { id:"hiit",         name:"HIIT",             icon:"⚡", cals_per_min:10 },
+  { id:"walk",         name:"Walk",             icon:"🚶", cals_per_min:4  },
+  { id:"run",          name:"Outdoor Run",      icon:"🏅", cals_per_min:9  },
+  { id:"yoga",         name:"Yoga / Stretch",   icon:"🧘", cals_per_min:3  },
+  { id:"cycling",      name:"Outdoor Cycling",  icon:"🚲", cals_per_min:7  },
+  { id:"boxing",       name:"Boxing",           icon:"🥊", cals_per_min:9  },
+];
+
+// Estimated cals burned from cardio session
+function estimateCardioCals(typeId, durationMins, intensity) {
+  const type = CARDIO_TYPES.find(t => t.id === typeId);
+  if (!type) return 0;
+  const intensityMult = 0.6 + (intensity / 10) * 0.8; // 0.6x at 1/10 to 1.4x at 10/10
+  return Math.round(type.cals_per_min * durationMins * intensityMult);
+}
+
+// ─────────────────────────────────────────────
+// CALORIE TRACKER
+// ─────────────────────────────────────────────
+const CalorieTracker = ({ calories, cardioSessions, profile, onAddMeal, onDeleteMeal, onAddCardio, onDeleteCardio }) => {
+  const [mealForm, setMealForm]       = useState({ name:"", cals:"" });
+  const [cardioForm, setCardioForm]   = useState({ type:"crosstrainer", duration:"", intensity:5, notes:"" });
+  const [activeSection, setSection]   = useState("log"); // "log" | "cardio" | "history"
+  const [saved, setSaved]             = useState(false);
+
+  const todayStr = new Date().toISOString().slice(0,10);
+  const todayMeals    = (calories   || []).filter(c => c.date?.slice(0,10) === todayStr);
+  const todayCardio   = (cardioSessions || []).filter(c => c.date?.slice(0,10) === todayStr);
+  const totalIn       = todayMeals.reduce((s, c) => s + (c.cals || 0), 0);
+  const totalBurned   = todayCardio.reduce((s, c) => s + (c.cals_burned || 0), 0);
+
+  // BMR estimate (Mifflin-St Jeor)
+  const bmr = (() => {
+    const w = parseFloat(profile?.weight) || 85;
+    const h = parseFloat(profile?.height) || 175;
+    const a = parseInt(profile?.age) || 40;
+    return Math.round(10*w + 6.25*h - 5*a + 5); // male
+  })();
+  const tdee = Math.round(bmr * 1.4); // moderate activity
+  const deficit = tdee + totalBurned - totalIn;
+  const goal = profile?.goal || "";
+  const targetDeficit = goal.includes("Fat loss") || goal.includes("fat") ? 500 : 0;
+
+  const addMeal = () => {
+    if (!mealForm.name || !mealForm.cals) return;
+    onAddMeal({ id:uid(), date:new Date().toISOString(), name:mealForm.name, cals:parseInt(mealForm.cals) });
+    setMealForm({ name:"", cals:"" });
+    setSaved(true); setTimeout(()=>setSaved(false), 1500);
+  };
+
+  const addCardio = () => {
+    if (!cardioForm.duration) return;
+    const burned = estimateCardioCals(cardioForm.type, parseInt(cardioForm.duration), cardioForm.intensity);
+    const type = CARDIO_TYPES.find(t=>t.id===cardioForm.type);
+    onAddCardio({ id:uid(), date:new Date().toISOString(), type:cardioForm.type, name:type?.name, icon:type?.icon, duration:parseInt(cardioForm.duration), intensity:cardioForm.intensity, cals_burned:burned, notes:cardioForm.notes });
+    setCardioForm({ type:"crosstrainer", duration:"", intensity:5, notes:"" });
+    setSaved(true); setTimeout(()=>setSaved(false), 1500);
+  };
+
+  const deficitColor = deficit >= targetDeficit ? C.green : deficit >= 0 ? C.amber : C.red;
+
+  return (
+    <div>
+      <SectionLabel>Today's Calories</SectionLabel>
+
+      {/* Summary tiles */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
+        {[
+          { label:"Consumed",  value:totalIn,             unit:"kcal", color:C.amber  },
+          { label:"Burned",    value:totalBurned,         unit:"kcal", color:C.green  },
+          { label:deficit>=0?"Deficit":"Surplus", value:Math.abs(deficit), unit:"kcal", color:deficitColor },
+        ].map(s=>(
+          <div key={s.label} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 10px" }}>
+            <div style={{ fontSize:9, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:3 }}>{s.label}</div>
+            <div style={{ fontSize:16, fontWeight:800, color:s.color }}>{s.value}</div>
+            <div style={{ fontSize:9, color:C.dim }}>{s.unit}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* TDEE bar */}
+      <Card style={{ marginBottom:12 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.muted, marginBottom:6 }}>
+          <span>Calories in: {totalIn} kcal</span>
+          <span>TDEE target: {tdee} kcal</span>
+        </div>
+        <div style={{ background:"#1e1e2e", borderRadius:6, height:8, overflow:"hidden", position:"relative" }}>
+          <div style={{ position:"absolute", left:0, top:0, height:"100%", width:`${Math.min(100,(totalIn/tdee)*100)}%`, background:totalIn>tdee?C.red:C.indigo, borderRadius:6, transition:"width .4s" }} />
+          {targetDeficit > 0 && (
+            <div style={{ position:"absolute", left:`${((tdee-targetDeficit)/tdee)*100}%`, top:0, width:2, height:"100%", background:C.green }} />
+          )}
+        </div>
+        {targetDeficit > 0 && <div style={{ fontSize:9, color:C.green, marginTop:4 }}>🎯 Fat loss target: {tdee-targetDeficit} kcal/day (500 kcal deficit)</div>}
+      </Card>
+
+      {/* Section tabs */}
+      <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+        {[["log","🍽 Log meal"],["cardio","🏃 Cardio"],["history","📋 History"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setSection(id)}
+            style={{ flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, background:activeSection===id?C.indigo:C.input, color:activeSection===id?"#fff":C.muted }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Log meal */}
+      {activeSection==="log" && (
+        <Card>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Add food / meal</div>
+          <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+            <input placeholder="e.g. Chicken & rice" value={mealForm.name} onChange={e=>setMealForm(f=>({...f,name:e.target.value}))}
+              style={{ flex:2, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:12, outline:"none" }} />
+            <input placeholder="kcal" type="number" value={mealForm.cals} onChange={e=>setMealForm(f=>({...f,cals:e.target.value}))}
+              style={{ flex:1, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:12, outline:"none" }} />
+          </div>
+          <button onClick={addMeal} style={{ width:"100%", background:C.grad, border:"none", borderRadius:7, padding:"9px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>Add meal</button>
+          {saved && <div style={{ textAlign:"center", color:C.green, fontSize:11, marginTop:6 }}>✓ Saved!</div>}
+          {todayMeals.length > 0 && (
+            <div style={{ marginTop:12 }}>
+              <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Today's meals</div>
+              {todayMeals.map((m,i)=>(
+                <div key={m.id||i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderTop:`1px solid ${C.border}` }}>
+                  <span style={{ fontSize:12, color:C.text }}>{m.name}</span>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:C.amber }}>{m.cals} kcal</span>
+                    <button onClick={()=>onDeleteMeal(m.id||i)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:14 }}>×</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:`1px solid ${C.border}`, marginTop:4 }}>
+                <span style={{ fontSize:11, fontWeight:700, color:C.muted }}>Total</span>
+                <span style={{ fontSize:13, fontWeight:800, color:C.amber }}>{totalIn} kcal</span>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Log cardio */}
+      {activeSection==="cardio" && (
+        <Card>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Log cardio session</div>
+          <label style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:6, display:"block" }}>Activity</label>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
+            {CARDIO_TYPES.map(t=>(
+              <button key={t.id} onClick={()=>setCardioForm(f=>({...f,type:t.id}))}
+                style={{ padding:"8px 4px", borderRadius:8, border:`1px solid ${cardioForm.type===t.id?C.indigo:C.border}`, background:cardioForm.type===t.id?C.indigo+"22":C.input, color:cardioForm.type===t.id?C.indigo:C.muted, cursor:"pointer", fontSize:10, fontWeight:600, textAlign:"center" }}>
+                <div style={{ fontSize:18, marginBottom:2 }}>{t.icon}</div>
+                <div style={{ fontSize:9 }}>{t.name.split(" ")[0]}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:5, display:"block" }}>Duration (mins)</label>
+              <input type="number" placeholder="e.g. 25" value={cardioForm.duration} onChange={e=>setCardioForm(f=>({...f,duration:e.target.value}))}
+                style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" }} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:5, display:"block" }}>Intensity ({cardioForm.intensity}/10)</label>
+              <input type="range" min="1" max="10" value={cardioForm.intensity} onChange={e=>setCardioForm(f=>({...f,intensity:parseInt(e.target.value)}))}
+                style={{ width:"100%", marginTop:10, accentColor:C.indigo }} />
+            </div>
+          </div>
+          {cardioForm.duration && (
+            <div style={{ background:"#1e2a1e", border:"1px solid #2a4a2a", borderRadius:7, padding:"8px 12px", marginBottom:10, fontSize:11, color:C.green }}>
+              Est. calories burned: <strong>{estimateCardioCals(cardioForm.type, parseInt(cardioForm.duration)||0, cardioForm.intensity)} kcal</strong>
+            </div>
+          )}
+          <input placeholder="Notes (optional)" value={cardioForm.notes} onChange={e=>setCardioForm(f=>({...f,notes:e.target.value}))}
+            style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", marginBottom:10 }} />
+          <button onClick={addCardio} style={{ width:"100%", background:C.grad, border:"none", borderRadius:7, padding:"9px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>Log session</button>
+          {saved && <div style={{ textAlign:"center", color:C.green, fontSize:11, marginTop:6 }}>✓ Saved!</div>}
+          {todayCardio.length>0 && (
+            <div style={{ marginTop:12 }}>
+              <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Today's cardio</div>
+              {todayCardio.map((c,i)=>(
+                <div key={c.id||i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderTop:`1px solid ${C.border}` }}>
+                  <span style={{ fontSize:12, color:C.text }}>{c.icon} {c.name} · {c.duration}min · {c.intensity}/10</span>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:C.green }}>{c.cals_burned} kcal</span>
+                    <button onClick={()=>onDeleteCardio(c.id||i)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:14 }}>×</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* History — last 7 days */}
+      {activeSection==="history" && (
+        <Card>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>7-day calorie history</div>
+          {Array.from({length:7},(_,i)=>{
+            const d = new Date(); d.setDate(d.getDate()-i);
+            const ds = d.toISOString().slice(0,10);
+            const dayIn     = (calories||[]).filter(c=>c.date?.slice(0,10)===ds).reduce((s,c)=>s+(c.cals||0),0);
+            const dayBurned = (cardioSessions||[]).filter(c=>c.date?.slice(0,10)===ds).reduce((s,c)=>s+(c.cals_burned||0),0);
+            const dayDef    = tdee + dayBurned - dayIn;
+            if (dayIn===0 && dayBurned===0) return null;
+            return (
+              <div key={ds} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
+                <span style={{ fontSize:11, color:C.text }}>{fmtDate(ds+"T12:00:00")}</span>
+                <div style={{ display:"flex", gap:12, fontSize:11 }}>
+                  <span style={{ color:C.amber }}>{dayIn} in</span>
+                  <span style={{ color:C.green }}>{dayBurned} burned</span>
+                  <span style={{ color:dayDef>=0?C.green:C.red, fontWeight:700 }}>{dayDef>=0?"-":"+"}{ Math.abs(dayDef)}</span>
+                </div>
+              </div>
+            );
+          }).filter(Boolean)}
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SESSION SUMMARY
+// ─────────────────────────────────────────────
+const SessionSummary = ({ logs, exercises, calories, cardioSessions, profile }) => {
+  const todayStr = new Date().toISOString().slice(0,10);
+  const todayEx = exercises.filter(ex => (logs[ex.id]||[]).some(e=>e.date?.slice(0,10)===todayStr));
+  const todaySessions = todayEx.map(ex => {
+    const s = (logs[ex.id]||[]).filter(e=>e.date?.slice(0,10)===todayStr);
+    const best = s.reduce((b,e)=>{ const v=ex.bw?e.reps:e.weight; return v>b?v:b; }, 0);
+    return { ex, sessions:s, best };
+  });
+  const totalSets   = todaySessions.reduce((s,t)=>s+t.sessions.reduce((a,e)=>a+(e.sets||1),0),0);
+  const totalReps   = todaySessions.reduce((s,t)=>s+t.sessions.reduce((a,e)=>a+(e.reps||0),0),0);
+  const totalWeight = todaySessions.reduce((s,t)=>s+t.sessions.reduce((a,e)=>a+((e.weight||0)*(e.reps||1)*(e.sets||1)),0),0);
+  const todayCalIn  = (calories||[]).filter(c=>c.date?.slice(0,10)===todayStr).reduce((s,c)=>s+(c.cals||0),0);
+  const todayCardBurned = (cardioSessions||[]).filter(c=>c.date?.slice(0,10)===todayStr).reduce((s,c)=>s+(c.cals_burned||0),0);
+  const strengthBurned  = Math.round(totalSets * 5.5); // ~5.5 kcal per set
+  const totalBurned     = todayCardBurned + strengthBurned;
+
+  if (todaySessions.length === 0 && todayCalIn === 0) return null;
+
+  return (
+    <div>
+      <SectionLabel>Today's Summary</SectionLabel>
+      <Card style={{ marginBottom:12 }}>
+        {/* Effort tiles */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:12 }}>
+          {[
+            { label:"Exercises", value:todaySessions.length, color:C.purple },
+            { label:"Sets",      value:totalSets,            color:C.indigo },
+            { label:"Volume",    value:totalWeight>0?`${Math.round(totalWeight/1000)}t`:"–", color:C.amber },
+            { label:"Burned",    value:`${totalBurned}`, unit:"kcal", color:C.green },
+          ].map(s=>(
+            <div key={s.label} style={{ background:C.input, borderRadius:7, padding:"7px 6px", textAlign:"center" }}>
+              <div style={{ fontSize:14, fontWeight:800, color:s.color }}>{s.value}</div>
+              <div style={{ fontSize:8, color:C.dim, textTransform:"uppercase", fontWeight:600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Personal bests today */}
+        {todaySessions.filter(t=>t.best>0).length > 0 && (
+          <div style={{ marginBottom:10 }}>
+            <div style={{ fontSize:10, color:C.muted, fontWeight:700, textTransform:"uppercase", marginBottom:6 }}>Today's lifts</div>
+            {todaySessions.map(({ex,best})=>(
+              <div key={ex.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:`1px solid ${C.border}` }}>
+                <span style={{ fontSize:11, color:C.text }}>{ex.name}</span>
+                <span style={{ fontSize:11, fontWeight:700, color:C.purple }}>{best}{ex.bw?` ${ex.unit}`:"kg"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Calorie summary */}
+        {(todayCalIn > 0 || totalBurned > 0) && (
+          <div style={{ background:C.input, borderRadius:8, padding:"10px 12px" }}>
+            <div style={{ fontSize:10, color:C.muted, fontWeight:700, textTransform:"uppercase", marginBottom:6 }}>Calorie balance</div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11 }}>
+              <span style={{ color:C.amber }}>In: {todayCalIn} kcal</span>
+              <span style={{ color:C.green }}>Burned: {totalBurned} kcal</span>
+              <span style={{ color:todayCalIn-totalBurned<0?C.green:C.amber, fontWeight:700 }}>
+                Net: {todayCalIn-totalBurned} kcal
+              </span>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
@@ -1852,6 +2160,22 @@ const WORKOUT_TEMPLATES = [
     }
   },
   {
+    id:"fatloss",
+    name:"Fat Loss Circuit",
+    desc:"Higher frequency, shorter sessions with cardio integration. Combines resistance training with HIIT for maximum calorie burn.",
+    tag:"Fat Loss",
+    days:5,
+    plan:{
+      Monday:    ["bench","pulldown","legpress","crunches","plank"],
+      Tuesday:   ["shoulder","row","rdl","legext","legrise"],
+      Wednesday: [],
+      Thursday:  ["incline","seatedrow","goblet","legcurl","russian"],
+      Friday:    ["chestpress","pullup","stiffleg","hipabduct","deadbug"],
+      Saturday:  ["legpress","rdl","crunches","plank","sideplankleft"],
+      Sunday:    [],
+    }
+  },
+  {
     id:"home_gym",
     name:"Home Gym Dumbbells",
     desc:"Designed for home gym with dumbbells only. 4 days, full coverage, no machines needed.",
@@ -1956,7 +2280,7 @@ const TemplatesPanel = ({ currentPlan, onApply, trainingDays }) => {
   const [confirmId, setConfirmId] = useState(null);
   const TAG_COLORS = {
     "Hypertrophy":"#6366f1", "Advanced":"#ef4444", "Strength":"#f59e0b",
-    "Beginner":"#22c55e", "Home":"#a855f7"
+    "Beginner":"#22c55e", "Home":"#a855f7", "Fat Loss":"#22c55e"
   };
   const previewTemplate = previewId ? WORKOUT_TEMPLATES.find(t => t.id === previewId) : null;
 
@@ -2686,6 +3010,9 @@ export default function App() {
   const [favourites,   setFavourites]   = useState([]);
   const [bodyWeights,  setBodyWeights]  = useState([]);
   const [photos,       setPhotos]       = useState([]);
+  const [calories,     setCalories]     = useState([]);
+  const [cardioSessions, setCardioSessions] = useState([]);
+  const [planName,     setPlanName]     = useState("My Plan");
 
   const [activeTab,   setActiveTab]   = useState("dashboard");
   const [detailId,    setDetailId]    = useState(null);
@@ -2923,7 +3250,7 @@ export default function App() {
         )}
 
         {!detailId && activeTab === "dashboard" && (
-          <Dashboard exercises={exercises} logs={logs} plan={plan} onOpenExercise={id => openExercise(id, "Home")} favourites={favExList} streakData={streakData} />
+          <Dashboard exercises={exercises} logs={logs} plan={plan} onOpenExercise={id => openExercise(id, "Home")} favourites={favExList} streakData={streakData} calories={calories} cardioSessions={cardioSessions} profile={profile} />
         )}
 
         {!detailId && activeTab === "plan" && (
@@ -3072,6 +3399,20 @@ export default function App() {
               )}
             </Card>
 
+            {/* Session summary */}
+            <SessionSummary logs={logs} exercises={exercises} calories={calories} cardioSessions={cardioSessions} profile={profile} />
+
+            {/* Calorie tracker */}
+            <CalorieTracker
+              calories={calories}
+              cardioSessions={cardioSessions}
+              profile={profile}
+              onAddMeal={m => persistCalories([...calories, m])}
+              onDeleteMeal={id => persistCalories(calories.filter(c=>(c.id||calories.indexOf(c))!==id))}
+              onAddCardio={s => persistCardioSessions([...cardioSessions, s])}
+              onDeleteCardio={id => persistCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id))}
+            />
+
             {/* Body weight */}
             <BodyWeightTracker
               bodyWeights={bodyWeights}
@@ -3097,7 +3438,7 @@ export default function App() {
         )}
 
         {!detailId && activeTab === "profile" && (
-          <ProfileTab profile={profile} onUpdate={persistProfile} />
+          <ProfileTab profile={profile} onUpdate={persistProfile} onRegeneratePlan={async p => { const newPlan = buildDefaultPlan(p); await persistPlan(newPlan); await persistProfile(p); }} />
         )}
       </div>
 
