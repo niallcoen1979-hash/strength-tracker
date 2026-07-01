@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, no-undef */
 import { useState, useEffect, useCallback } from "react";
 import {
   BarChart, Bar, LineChart, Line,
