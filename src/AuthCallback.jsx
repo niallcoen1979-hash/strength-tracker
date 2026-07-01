@@ -3,9 +3,21 @@ import { supabase } from "./supabase";
 
 export default function AuthCallback() {
   useEffect(() => {
-    supabase.auth.getSession().then(() => {
-      window.location.href = "/";
-    });
+    const handleCallback = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (data?.session) {
+        window.location.replace("/");
+      } else {
+        // Try exchanging the code for a session
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        }
+        window.location.replace("/");
+      }
+    };
+    handleCallback();
   }, []);
 
   return (
