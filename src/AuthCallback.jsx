@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useEffect } from "react";
 import { supabase } from "./supabase";
 
@@ -8,7 +9,6 @@ export default function AuthCallback() {
       if (data?.session) {
         window.location.replace("/");
       } else {
-        // Try exchanging the code for a session
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
         if (code) {
