@@ -129,16 +129,13 @@ const SEED_EXERCISES = [
   { id:"hipadduct",   name:"Hip Adductor (Machine)",    unit:"kg",        bw:false, group:"Legs",      baseline:[40,55],   t6:[65,80],   t18:[85,100],
     desc:"Sit with legs apart, squeeze legs together against resistance. Targets inner thighs. Keep core engaged.",
     video:"https://www.youtube.com/watch?v=Uli2ZOtZl_s" },
-  { id:"hipthrust",   name:"Hip Thrust",                unit:"kg",        bw:false, group:"Legs",      baseline:[40,60],   t6:[80,100],  t18:[120,140],
-    desc:"Upper back on bench, barbell across hips. Drive hips up squeezing glutes at top. Hip-safe glute builder — no deep flexion.",
-    video:"https://www.youtube.com/watch?v=xDmFkJxPzeM" },
   { id:"goblet",      name:"Goblet Squat",              unit:"kg",        bw:false, group:"Legs",      baseline:[20,30],   t6:[35,45],   t18:[50,60],
     desc:"Hold dumbbell at chest, squat deep with elbows inside knees. Hip-friendly squat variation. Great for mobility.",
     video:"https://www.youtube.com/watch?v=MeIiIdhvXT4" },
   { id:"hipthrust",   name:"Hip Thrust",                unit:"kg",        bw:false, group:"Legs",      baseline:[40,60],   t6:[70,90],   t18:[100,120],
     desc:"Upper back on bench, barbell across hips. Drive hips up squeezing glutes at top. Hip-safe glute builder — no deep flexion under load.",
     video:"https://www.youtube.com/watch?v=LM8XHLYJoYs" },
-  { id:"boxsquat",    name:"Box Squat (above 90°)",     unit:"kg",        bw:false, group:"Legs",      baseline:[40,60],   t6:[70,90],   t18:[100,120],
+  { id:"boxsquat",    name:"Box Squat (above 90)",      unit:"kg",        bw:false, group:"Legs",      baseline:[40,60],   t6:[70,90],   t18:[100,120],
     desc:"Squat back to a box or bench set above parallel. Controls depth to protect hip. Stand up driving through heels.",
     video:"https://www.youtube.com/watch?v=Ml4Nn5Xj1sM" },
   { id:"trapbar",     name:"Trap Bar Deadlift (limited)", unit:"kg",      bw:false, group:"Legs",      baseline:[50,70],   t6:[85,105],  t18:[120,140],
@@ -1638,301 +1635,6 @@ Be direct and specific with numbers. No fluff. Start with the action e.g. "Next 
 
 
 // ─────────────────────────────────────────────
-// PERSONAL PROTOCOL — Niall's fat loss + muscle preservation plan
-// ─────────────────────────────────────────────
-const PROTOCOL = {
-  targets: {
-    calories: 2200,
-    protein: 190,   // grams (35%)
-    carbs: 200,     // grams (37%)
-    fat: 70,        // grams (28%)
-    water: 4,       // litres
-    steps: 10000,
-    creatine: 5,    // grams
-  },
-  split: {
-    Monday:    { type:"Upper Body",          exercises:["bench","incline","shoulder","bicepcurl","pulldown","abcrunch"] },
-    Tuesday:   { type:"Lower Body (hip-safe)", exercises:["legpress","rdl","hipthrust","legext","legcurl","calfpress","abcrunch"] },
-    Wednesday: { type:"Rest / Mobility",     exercises:[] },
-    Thursday:  { type:"Upper Body",          exercises:["bench","incline","shoulder","bicepcurl","pulldown","abcrunch"] },
-    Friday:    { type:"Lower Body (hip-safe)", exercises:["legpress","rdl","hipthrust","legext","legcurl","calfpress","abcrunch"] },
-    Saturday:  { type:"Optional / Rest",     exercises:[] },
-    Sunday:    { type:"Rest",                exercises:[] },
-  },
-  setProtocol: [
-    "Set 1: 6-9 reps to failure (heavy)",
-    "Set 2: -25% weight, to failure",
-    "Set 3 (optional): repeat Set 2",
-    "Rest: 90 seconds between sets",
-    "Post-weights: 15-20 min incline walk/run",
-  ],
-  postSession: [
-    "Plank: 4 × 1 min",
-    "Weighted side plank: 4 sets each side",
-    "Ab vacuum: 3 × 30 sec",
-    "20-30 min yoga / stretch",
-  ],
-  foodSources: {
-    "Protein (GF, egg-free, dairy-free)": ["Chicken","Turkey","Lean beef / steak","Salmon","Cod","Haddock","Pea protein powder"],
-    "Carbs": ["Basmati rice (weigh dry)","New / sweet potato","GF rice pasta","GF oats","Quinoa","Fruit"],
-    "Fats": ["Olive oil","Avocado","Almonds","Mixed nuts","Peanut / almond butter"],
-  },
-  notes: [
-    "🦴 Hip replacement — avoid deep hip flexion under load, no floor barbell deadlifts",
-    "🌾 Gluten-free, egg-free, dairy-free",
-    "💊 5g creatine daily",
-    "💧 4L water daily",
-    "👟 10,000+ steps daily",
-  ],
-};
-
-// Progress ring component
-const ProgressRing = ({ value, target, size = 54, stroke = 5, color, label, unit }) => {
-  const pct = Math.min(100, (value / target) * 100);
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-      <div style={{ position:"relative", width:size, height:size }}>
-        <svg width={size} height={size} style={{ transform:"rotate(-90deg)" }}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e1e2e" strokeWidth={stroke} />
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-            strokeDasharray={circ} strokeDashoffset={circ * (1 - pct/100)} strokeLinecap="round"
-            style={{ transition:"stroke-dashoffset .5s" }} />
-        </svg>
-        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:C.text }}>
-          {Math.round(pct)}%
-        </div>
-      </div>
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:10, fontWeight:700, color:C.text }}>{label}</div>
-        <div style={{ fontSize:8, color:C.dim }}>{value}/{target}{unit}</div>
-      </div>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// PROTOCOL DASHBOARD — daily targets tracker
-// ─────────────────────────────────────────────
-const ProtocolTracker = ({ dailyLog, calories, cardioSessions, onUpdateLog, profile }) => {
-  const [section, setSection] = useState("targets"); // targets | training | food | notes
-
-  const todayStr = new Date().toISOString().slice(0,10);
-  const today = dailyLog?.[todayStr] || { water:0, steps:0, creatine:false, protein:0, carbs:0, fat:0 };
-
-  // Pull calorie/macro totals from meals logged today
-  const todayMeals = (calories||[]).filter(c => c.date?.slice(0,10) === todayStr);
-  const calsIn = todayMeals.reduce((s,c)=>s+(c.cals||0),0);
-  const proteinIn = todayMeals.reduce((s,c)=>s+(c.protein||0),0) || today.protein;
-  const carbsIn   = todayMeals.reduce((s,c)=>s+(c.carbs||0),0) || today.carbs;
-  const fatIn     = todayMeals.reduce((s,c)=>s+(c.fat||0),0) || today.fat;
-
-  const upd = (patch) => onUpdateLog(todayStr, { ...today, ...patch });
-  const T = PROTOCOL.targets;
-  const dayName = DAYS[(new Date().getDay()+6)%7];
-  const todaySplit = PROTOCOL.split[dayName];
-
-  return (
-    <div>
-      <SectionLabel>My Protocol</SectionLabel>
-
-      {/* Section switcher */}
-      <div style={{ display:"flex", gap:5, marginBottom:12, flexWrap:"wrap" }}>
-        {[["targets","🎯 Targets"],["training","🏋️ Training"],["food","🍽 Food"],["notes","📋 Notes"]].map(([id,label])=>(
-          <button key={id} onClick={()=>setSection(id)}
-            style={{ flex:1, minWidth:70, padding:"7px 4px", borderRadius:7, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, background:section===id?C.indigo:C.input, color:section===id?"#fff":C.muted }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* TARGETS */}
-      {section === "targets" && (
-        <>
-          {/* Macro rings */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 }}>Daily Macros</div>
-            <div style={{ display:"flex", justifyContent:"space-around", marginBottom:8 }}>
-              <ProgressRing value={calsIn}    target={T.calories} color={C.indigo} label="Calories" unit="" />
-              <ProgressRing value={proteinIn} target={T.protein}  color={C.red}    label="Protein"  unit="g" />
-              <ProgressRing value={carbsIn}   target={T.carbs}    color={C.amber}  label="Carbs"    unit="g" />
-              <ProgressRing value={fatIn}     target={T.fat}      color={C.green}  label="Fat"      unit="g" />
-            </div>
-            <div style={{ fontSize:10, color:C.dim, textAlign:"center", marginTop:8 }}>
-              Log meals with macros in the Stats → Calories tab to auto-fill these
-            </div>
-          </Card>
-
-          {/* Manual macro entry */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Quick macro update</div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-              {[["protein","Protein (g)"],["carbs","Carbs (g)"],["fat","Fat (g)"]].map(([k,lbl])=>(
-                <div key={k}>
-                  <label style={{ fontSize:10, color:C.muted, fontWeight:600, marginBottom:4, display:"block" }}>{lbl}</label>
-                  <input type="number" value={today[k]||""} onChange={e=>upd({[k]:parseInt(e.target.value)||0})}
-                    style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:6, padding:"7px 8px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box" }} />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Water */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.text }}>💧 Water</div>
-              <div style={{ fontSize:12, fontWeight:800, color:C.indigo }}>{today.water||0} / {T.water} L</div>
-            </div>
-            <div style={{ display:"flex", gap:5 }}>
-              {Array.from({length:8},(_,i)=>{
-                const filled = (today.water||0) > i*0.5;
-                return (
-                  <button key={i} onClick={()=>upd({water:(i+1)*0.5})}
-                    style={{ flex:1, height:32, borderRadius:5, border:"none", cursor:"pointer", background:filled?C.indigo:C.input, transition:"background .2s", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11 }}>
-                    {filled?"💧":""}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ fontSize:9, color:C.dim, textAlign:"center", marginTop:6 }}>Tap to fill — each block = 500ml</div>
-          </Card>
-
-          {/* Steps */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.text }}>👟 Steps</div>
-              <div style={{ fontSize:12, fontWeight:800, color:C.green }}>{(today.steps||0).toLocaleString()} / {T.steps.toLocaleString()}</div>
-            </div>
-            <input type="number" placeholder="Enter step count" value={today.steps||""} onChange={e=>upd({steps:parseInt(e.target.value)||0})}
-              style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box", marginBottom:8 }} />
-            <div style={{ background:"#1e1e2e", borderRadius:5, height:6, overflow:"hidden" }}>
-              <div style={{ height:"100%", width:`${Math.min(100,((today.steps||0)/T.steps)*100)}%`, background:C.green, borderRadius:5, transition:"width .4s" }} />
-            </div>
-          </Card>
-
-          {/* Creatine */}
-          <Card>
-            <div onClick={()=>upd({creatine:!today.creatine})} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.text }}>💊 Creatine (5g)</div>
-              <div style={{ width:44, height:26, borderRadius:13, background:today.creatine?C.green:C.input, position:"relative", transition:"background .2s" }}>
-                <div style={{ position:"absolute", top:3, left:today.creatine?21:3, width:20, height:20, borderRadius:10, background:"#fff", transition:"left .2s" }} />
-              </div>
-            </div>
-          </Card>
-        </>
-      )}
-
-      {/* TRAINING */}
-      {section === "training" && (
-        <>
-          {/* Today's session */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>Today — {dayName}</div>
-            <div style={{ fontSize:16, fontWeight:800, color:C.indigo, marginBottom:8 }}>{todaySplit.type}</div>
-            {todaySplit.exercises.length > 0 ? (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                {todaySplit.exercises.map(id=>{
-                  const ex = SEED_EXERCISES.find(e=>e.id===id);
-                  return ex ? <span key={id} style={{ fontSize:11, background:C.input, borderRadius:6, padding:"4px 9px", color:C.text }}>{ex.name}</span> : null;
-                })}
-              </div>
-            ) : <div style={{ fontSize:12, color:C.dim }}>Rest or mobility day 🧘</div>}
-          </Card>
-
-          {/* Full week split */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Weekly Split</div>
-            {DAYS.map(d=>(
-              <div key={d} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
-                <span style={{ fontSize:12, fontWeight:d===dayName?700:400, color:d===dayName?C.indigo:C.text }}>{d}</span>
-                <span style={{ fontSize:11, color:C.muted }}>{PROTOCOL.split[d].type}</span>
-              </div>
-            ))}
-          </Card>
-
-          {/* Set protocol */}
-          <Card style={{ marginBottom:10 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Set Protocol (Drop Sets)</div>
-            {PROTOCOL.setProtocol.map((s,i)=>(
-              <div key={i} style={{ display:"flex", gap:8, alignItems:"flex-start", padding:"5px 0" }}>
-                <span style={{ fontSize:11, color:C.indigo, fontWeight:700, minWidth:16 }}>{i+1}.</span>
-                <span style={{ fontSize:12, color:C.text }}>{s}</span>
-              </div>
-            ))}
-          </Card>
-
-          {/* Post session */}
-          <Card>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Post-Session (Core + Mobility)</div>
-            {PROTOCOL.postSession.map((s,i)=>(
-              <div key={i} style={{ fontSize:12, color:C.text, padding:"5px 0", borderBottom:i<PROTOCOL.postSession.length-1?`1px solid ${C.border}`:"none" }}>• {s}</div>
-            ))}
-          </Card>
-        </>
-      )}
-
-      {/* FOOD */}
-      {section === "food" && (
-        <>
-          <div style={{ background:"#2a1a0a", border:"1px solid #4a3a1a", borderRadius:10, padding:"12px 14px", marginBottom:10, fontSize:11, color:C.amber, lineHeight:1.6 }}>
-            🌾 <strong>Gluten-free, egg-free, dairy-free</strong> — all sources below are compliant
-          </div>
-          {Object.entries(PROTOCOL.foodSources).map(([cat, foods])=>(
-            <Card key={cat} style={{ marginBottom:10 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:10 }}>{cat}</div>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                {foods.map(f=>(
-                  <span key={f} style={{ fontSize:11, background:C.input, borderRadius:6, padding:"5px 10px", color:C.muted }}>{f}</span>
-                ))}
-              </div>
-            </Card>
-          ))}
-          <Card>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Daily macro split</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {[
-                ["Protein","190g","35%",C.red],
-                ["Carbs","200g","37%",C.amber],
-                ["Fat","70g","28%",C.green],
-              ].map(([name,g,pct,col])=>(
-                <div key={name} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:12, color:C.text, minWidth:60 }}>{name}</span>
-                  <div style={{ flex:1, background:"#1e1e2e", borderRadius:5, height:8, overflow:"hidden" }}>
-                    <div style={{ height:"100%", width:pct, background:col, borderRadius:5 }} />
-                  </div>
-                  <span style={{ fontSize:11, color:C.muted, minWidth:60, textAlign:"right" }}>{g} · {pct}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </>
-      )}
-
-      {/* NOTES */}
-      {section === "notes" && (
-        <Card>
-          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 }}>Key Protocol Notes</div>
-          {PROTOCOL.notes.map((n,i)=>(
-            <div key={i} style={{ fontSize:12, color:C.text, padding:"9px 0", borderBottom:i<PROTOCOL.notes.length-1?`1px solid ${C.border}`:"none", lineHeight:1.5 }}>{n}</div>
-          ))}
-          <div style={{ marginTop:14, padding:"12px 14px", background:"#1a1a2e", borderRadius:8 }}>
-            <div style={{ fontSize:11, color:C.muted, lineHeight:1.7 }}>
-              <strong style={{ color:C.text }}>Profile:</strong> 46y, 178cm, ~95kg<br/>
-              <strong style={{ color:C.text }}>Goal:</strong> Fat loss + muscle preservation<br/>
-              <strong style={{ color:C.text }}>Target:</strong> 2,200 kcal/day
-            </div>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-};
-
-
-// ─────────────────────────────────────────────
-// CARDIO OPTIONS
-// ─────────────────────────────────────────────
 const CARDIO_TYPES = [
   { id:"crosstrainer", name:"Cross Trainer",    icon:"🏃", cals_per_min:7  },
   { id:"treadmill",    name:"Treadmill",        icon:"🏃", cals_per_min:8  },
@@ -2393,40 +2095,34 @@ function getWarmupForDay(dayExercises, allExercises) {
 // ─────────────────────────────────────────────
 // MY PLAN — structured personal programme
 // ─────────────────────────────────────────────
+// MY PLAN — Niall's personal fat-loss programme
+// ─────────────────────────────────────────────
 const MY_PLAN = {
-  dailyTargets: {
-    calories: 2200,
-    protein:  190,
-    carbs:    200,
-    fat:      70,
-    water:    4,     // litres
-    steps:    10000,
-    creatine: 5,     // grams
-  },
+  dailyTargets: { calories:2200, protein:190, carbs:200, fat:70, water:4, steps:10000, creatine:5 },
   macroSplit: { protein:35, carbs:37, fat:28 },
   medical: "Successful hip replacement — avoid deep hip flexion under load, no floor barbell deadlifts.",
   dietary: ["Gluten-free","Egg-free","Dairy-free"],
   split: {
-    Monday:    { type:"Upper Body",         exercises:["bench","incline","shoulder","bicepcurl","pulldown","abcrunch"] },
-    Tuesday:   { type:"Lower Body (hip-safe)", exercises:["legpress","rdl","hipthrust","legext","legcurl","calfpress","abcrunch"] },
-    Wednesday: { type:"Rest / Mobility",     exercises:[] },
-    Thursday:  { type:"Upper Body",         exercises:["bench","incline","shoulder","bicepcurl","pulldown","abcrunch"] },
-    Friday:    { type:"Lower Body (hip-safe)", exercises:["legpress","rdl","hipthrust","legext","legcurl","calfpress","abcrunch"] },
-    Saturday:  { type:"Optional / Rest",    exercises:[] },
-    Sunday:    { type:"Rest",               exercises:[] },
+    Monday:    { type:"Upper Body",            exercises:["bench","incline","shoulder","bicepcurl","pulldown","abcrunch"] },
+    Tuesday:   { type:"Lower Body (hip-safe)", exercises:["boxsquat","trapbar","hipthrust","legext","legcurl","calfpress","abcrunch"] },
+    Wednesday: { type:"Rest / Mobility",       exercises:[] },
+    Thursday:  { type:"Upper Body",            exercises:["bench","incline","shoulder","bicepcurl","pulldown","abcrunch"] },
+    Friday:    { type:"Lower Body (hip-safe)", exercises:["boxsquat","trapbar","hipthrust","legext","legcurl","calfpress","abcrunch"] },
+    Saturday:  { type:"Optional / Rest",       exercises:[] },
+    Sunday:    { type:"Rest",                  exercises:[] },
   },
   setProtocol: [
-    { set:1, desc:"6–9 reps to failure (heavy)" },
-    { set:2, desc:"−25% weight, to failure" },
+    { set:1, desc:"Heavy — 6-9 reps to failure" },
+    { set:2, desc:"Drop 25% weight, to failure" },
     { set:3, desc:"Optional — repeat Set 2", optional:true },
   ],
   restBetweenSets: "90 seconds",
-  cardioFinisher: "15–20 min incline walk/run post-weights",
+  cardioFinisher: "15-20 min incline walk/run post-weights",
   postSession: [
-    { name:"Plank",             detail:"4 × 1 min" },
+    { name:"Plank",               detail:"4 x 1 min (30s rest)" },
     { name:"Weighted Side Plank", detail:"4 sets each side" },
-    { name:"Ab Vacuum",         detail:"3 × 30 sec" },
-    { name:"Yoga / Stretch",    detail:"20–30 min" },
+    { name:"Ab Vacuum",           detail:"3 x 30 sec" },
+    { name:"Yoga / Stretch",      detail:"20-30 min" },
   ],
   foodSources: {
     protein: ["Chicken","Turkey","Lean beef / steak","Salmon","Cod","Haddock","Pea protein powder"],
@@ -2435,33 +2131,27 @@ const MY_PLAN = {
   },
 };
 
-// ─────────────────────────────────────────────
-// Daily Targets Tracker
-// ─────────────────────────────────────────────
-const DailyTargetsCard = ({ dailyLog, onUpdate, calories, cardioSessions }) => {
+// Daily Targets tracker card
+const DailyTargetsCard = ({ dailyLog, onUpdate, calories }) => {
   const t = MY_PLAN.dailyTargets;
   const todayStr = new Date().toISOString().slice(0,10);
+  const todayMeals = (calories||[]).filter(c => c.date && c.date.slice(0,10)===todayStr);
+  const calsIn = todayMeals.reduce((s,c)=>s+(c.cals||0),0);
+  const log = (dailyLog && dailyLog[todayStr]) || { water:0, steps:0, creatine:false };
 
-  // Calorie/macro totals from logged meals today
-  const todayMeals = (calories||[]).filter(c => c.date?.slice(0,10)===todayStr);
-  const calsIn  = todayMeals.reduce((s,c)=>s+(c.cals||0),0);
-  const protIn  = todayMeals.reduce((s,c)=>s+(c.protein||0),0);
-
-  const log = dailyLog?.[todayStr] || { water:0, steps:0, creatine:false };
-
-  const Ring = ({ value, target, color, label, unit, big }) => {
+  const Ring = ({ value, target, color, label }) => {
     const pct = Math.min(100, (value/target)*100);
-    const r = big ? 30 : 24, circ = 2*Math.PI*r;
+    const r = 30, circ = 2*Math.PI*r;
     return (
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-        <div style={{ position:"relative", width:big?72:60, height:big?72:60 }}>
-          <svg width={big?72:60} height={big?72:60} style={{ transform:"rotate(-90deg)" }}>
-            <circle cx={big?36:30} cy={big?36:30} r={r} fill="none" stroke={C.border} strokeWidth="5" />
-            <circle cx={big?36:30} cy={big?36:30} r={r} fill="none" stroke={color} strokeWidth="5"
+        <div style={{ position:"relative", width:72, height:72 }}>
+          <svg width={72} height={72} style={{ transform:"rotate(-90deg)" }}>
+            <circle cx={36} cy={36} r={r} fill="none" stroke={C.border} strokeWidth="5" />
+            <circle cx={36} cy={36} r={r} fill="none" stroke={color} strokeWidth="5"
               strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round" style={{ transition:"stroke-dashoffset .5s" }} />
           </svg>
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column" }}>
-            <div style={{ fontSize:big?12:10, fontWeight:800, color:C.text, lineHeight:1 }}>{value}</div>
+            <div style={{ fontSize:12, fontWeight:800, color:C.text, lineHeight:1 }}>{value}</div>
             <div style={{ fontSize:7, color:C.dim }}>/{target}</div>
           </div>
         </div>
@@ -2474,38 +2164,31 @@ const DailyTargetsCard = ({ dailyLog, onUpdate, calories, cardioSessions }) => {
     <div>
       <SectionLabel>Daily Targets</SectionLabel>
       <Card style={{ marginBottom:12 }}>
-        {/* Nutrition rings */}
         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:16 }}>
-          <Ring value={calsIn} target={t.calories} color={C.amber}  label="kcal"    big />
-          <Ring value={protIn} target={t.protein}  color={C.indigo} label="protein" big />
+          <Ring value={calsIn} target={t.calories} color={C.amber}  label="kcal" />
+          <Ring value={log.steps||0} target={t.steps} color={C.green} label="steps" />
         </div>
-
-        {/* Manual trackers */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-          {/* Water */}
           <div style={{ background:C.input, borderRadius:10, padding:"12px" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>💧 Water</div>
-            <div style={{ fontSize:18, fontWeight:800, color:"#3b82f6", marginBottom:8 }}>{log.water}<span style={{ fontSize:11, color:C.dim }}>/{t.water}L</span></div>
+            <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Water</div>
+            <div style={{ fontSize:18, fontWeight:800, color:"#3b82f6", marginBottom:8 }}>{log.water||0}<span style={{ fontSize:11, color:C.dim }}>/{t.water}L</span></div>
             <div style={{ display:"flex", gap:5 }}>
-              <button onClick={()=>onUpdate(todayStr, { ...log, water:Math.max(0,+(log.water-0.25).toFixed(2)) })}
-                style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"5px", color:C.muted, fontSize:14, cursor:"pointer" }}>−</button>
-              <button onClick={()=>onUpdate(todayStr, { ...log, water:+(log.water+0.25).toFixed(2) })}
+              <button onClick={()=>onUpdate(todayStr, { ...log, water:Math.max(0,+((log.water||0)-0.25).toFixed(2)) })}
+                style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"5px", color:C.muted, fontSize:14, cursor:"pointer" }}>-</button>
+              <button onClick={()=>onUpdate(todayStr, { ...log, water:+((log.water||0)+0.25).toFixed(2) })}
                 style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"5px", color:"#3b82f6", fontSize:14, cursor:"pointer" }}>+</button>
             </div>
           </div>
-          {/* Steps */}
           <div style={{ background:C.input, borderRadius:10, padding:"12px" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>👟 Steps</div>
+            <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Steps</div>
             <input type="number" placeholder="0" value={log.steps||""} onChange={e=>onUpdate(todayStr, { ...log, steps:parseInt(e.target.value)||0 })}
               style={{ width:"100%", background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:14, fontWeight:700, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:9, color:log.steps>=t.steps?C.green:C.dim, marginTop:4 }}>{log.steps>=t.steps?"✓ Target hit":`Goal: ${t.steps.toLocaleString()}`}</div>
+            <div style={{ fontSize:9, color:(log.steps||0)>=t.steps?C.green:C.dim, marginTop:4 }}>{(log.steps||0)>=t.steps?"Target hit":`Goal ${t.steps.toLocaleString()}`}</div>
           </div>
         </div>
-
-        {/* Creatine toggle */}
         <div onClick={()=>onUpdate(todayStr, { ...log, creatine:!log.creatine })}
           style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:log.creatine?"#1a2a1a":C.input, border:`1px solid ${log.creatine?C.green+"55":C.border}`, borderRadius:10, padding:"10px 14px", cursor:"pointer" }}>
-          <span style={{ fontSize:12, color:log.creatine?C.text:C.muted }}>💊 Creatine ({t.creatine}g)</span>
+          <span style={{ fontSize:12, color:log.creatine?C.text:C.muted }}>Creatine ({t.creatine}g)</span>
           <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${log.creatine?C.green:C.inputB}`, background:log.creatine?C.green:"transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {log.creatine && <span style={{ color:"#fff", fontSize:12, fontWeight:800 }}>✓</span>}
           </div>
@@ -2515,42 +2198,33 @@ const DailyTargetsCard = ({ dailyLog, onUpdate, calories, cardioSessions }) => {
   );
 };
 
-// ─────────────────────────────────────────────
-// My Plan Panel (full programme reference)
-// ─────────────────────────────────────────────
+// My Programme reference panel
 const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
-  const [tab, setTab] = useState("training"); // training | protocol | nutrition
+  const [tab, setTab] = useState("training");
   const exMap = Object.fromEntries(exercises.map(e=>[e.id,e]));
-  const todayName = DAYS[(new Date().getDay()+6)%7];
-
+  const today = DAYS[(new Date().getDay()+6)%7];
   return (
     <div>
       <SectionLabel>My Programme</SectionLabel>
-
-      {/* Medical + dietary banner */}
       <div style={{ background:"#2a1a1a", border:"1px solid #4a2a2a", borderRadius:10, padding:"10px 14px", marginBottom:10, fontSize:11, color:"#fca5a5", lineHeight:1.5 }}>
-        ⚕️ {MY_PLAN.medical}
+        {MY_PLAN.medical}
       </div>
       <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
         {MY_PLAN.dietary.map(d=>(
-          <span key={d} style={{ fontSize:10, background:C.input, borderRadius:6, padding:"3px 9px", color:C.green, fontWeight:600 }}>🚫 {d}</span>
+          <span key={d} style={{ fontSize:10, background:C.input, borderRadius:6, padding:"3px 9px", color:C.green, fontWeight:600 }}>{d}</span>
         ))}
       </div>
-
-      {/* Sub-tabs */}
       <div style={{ display:"flex", gap:6, marginBottom:12 }}>
         {[["training","Split"],["protocol","Protocol"],["nutrition","Food"]].map(([id,label])=>(
           <button key={id} onClick={()=>setTab(id)}
             style={{ flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:tab===id?C.indigo:C.input, color:tab===id?"#fff":C.muted }}>{label}</button>
         ))}
       </div>
-
-      {/* Training split */}
       {tab==="training" && (
         <Card>
           {DAYS.map(day => {
             const d = MY_PLAN.split[day];
-            const isToday = day===todayName;
+            const isToday = day===today;
             const isRest = d.exercises.length===0;
             return (
               <div key={day} style={{ padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
@@ -2581,8 +2255,6 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
           </button>
         </Card>
       )}
-
-      {/* Set protocol */}
       {tab==="protocol" && (
         <Card>
           <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Set protocol</div>
@@ -2593,10 +2265,9 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
             </div>
           ))}
           <div style={{ background:C.input, borderRadius:8, padding:"10px 12px", marginTop:12, fontSize:11, color:C.muted, lineHeight:1.6 }}>
-            ⏱ <strong style={{ color:C.text }}>Rest:</strong> {MY_PLAN.restBetweenSets} between sets<br/>
-            🏃 <strong style={{ color:C.text }}>Finisher:</strong> {MY_PLAN.cardioFinisher}
+            <strong style={{ color:C.text }}>Rest:</strong> {MY_PLAN.restBetweenSets} between sets<br/>
+            <strong style={{ color:C.text }}>Finisher:</strong> {MY_PLAN.cardioFinisher}
           </div>
-
           <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", margin:"16px 0 10px" }}>Post-session (both days)</div>
           {MY_PLAN.postSession.map((p,i)=>(
             <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
@@ -2606,11 +2277,8 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
           ))}
         </Card>
       )}
-
-      {/* Nutrition sources */}
       {tab==="nutrition" && (
         <Card>
-          {/* Macro targets */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:14 }}>
             {[
               { label:"Protein", value:MY_PLAN.dailyTargets.protein, pct:MY_PLAN.macroSplit.protein, color:C.indigo },
@@ -2623,11 +2291,10 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
               </div>
             ))}
           </div>
-
           {[
-            { key:"protein", label:"🥩 Protein sources", color:C.indigo },
-            { key:"carbs",   label:"🍚 Carb sources",    color:C.amber  },
-            { key:"fat",     label:"🥑 Fat sources",     color:C.green  },
+            { key:"protein", label:"Protein sources", color:C.indigo },
+            { key:"carbs",   label:"Carb sources",    color:C.amber  },
+            { key:"fat",     label:"Fat sources",     color:C.green  },
           ].map(g=>(
             <div key={g.key} style={{ marginBottom:14 }}>
               <div style={{ fontSize:11, fontWeight:700, color:g.color, marginBottom:8 }}>{g.label}</div>
@@ -2645,8 +2312,6 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
 };
 
 
-// ─────────────────────────────────────────────
-// WORKOUT TEMPLATES
 // ─────────────────────────────────────────────
 const WORKOUT_TEMPLATES = [
   {
@@ -3599,8 +3264,6 @@ export default function App() {
   const [calories,     setCalories]     = useState([]);
   const [cardioSessions, setCardioSessions] = useState([]);
   const [dailyLog,     setDailyLog]     = useState({});
-  const [planName,     setPlanName]     = useState("My Plan");
-  const [dailyLog,     setDailyLog]     = useState({});
 
   const [activeTab,   setActiveTab]   = useState("dashboard");
   const [detailId,    setDetailId]    = useState(null);
@@ -3758,7 +3421,7 @@ export default function App() {
   const TABS = [
     { id:"dashboard", icon:"🏠", label:"Home"   },
     { id:"myplan",    icon:"🎯", label:"Plan+"  },
-    { id:"plan",      icon:"📅", label:"Week"   },
+    { id:"plan",      icon:"📅", label:"Plan"   },
     { id:"exercises", icon:"💪", label:"Exs"    },
     { id:"overview",  icon:"📈", label:"Charts" },
     { id:"stats",     icon:"⭐", label:"Stats"  },
@@ -3948,13 +3611,12 @@ export default function App() {
           <div>
             <DailyTargetsCard
               dailyLog={dailyLog}
-              onUpdate={(date, log) => persistDailyLog({ ...dailyLog, [date]:log })}
+              onUpdate={(date, log) => setDailyLog({ ...dailyLog, [date]:log })}
               calories={calories}
-              cardioSessions={cardioSessions}
             />
             <MyPlanPanel
               exercises={exercises}
-              onOpenExercise={id => openExercise(id, "MyPlan")}
+              onOpenExercise={id => openExercise(id, "Plan+")}
               onApplySplit={async () => {
                 const newPlan = {};
                 DAYS.forEach(d => { newPlan[d] = MY_PLAN.split[d].exercises; });
@@ -4017,10 +3679,10 @@ export default function App() {
               calories={calories}
               cardioSessions={cardioSessions}
               profile={profile}
-              onAddMeal={m => persistCalories([...calories, m])}
-              onDeleteMeal={id => persistCalories(calories.filter(c=>(c.id||calories.indexOf(c))!==id))}
-              onAddCardio={s => persistCardioSessions([...cardioSessions, s])}
-              onDeleteCardio={id => persistCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id))}
+              onAddMeal={m => setCalories([...calories, m])}
+              onDeleteMeal={id => setCalories(calories.filter(c=>(c.id||calories.indexOf(c))!==id))}
+              onAddCardio={s => setCardioSessions([...cardioSessions, s])}
+              onDeleteCardio={id => setCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id))}
             />
 
             {/* Body weight */}
