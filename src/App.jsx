@@ -2132,12 +2132,13 @@ const MY_PLAN = {
 };
 
 // Daily Targets tracker card
-const DailyTargetsCard = ({ dailyLog, onUpdate, calories }) => {
-  const t = MY_PLAN.dailyTargets;
+const DailyTargetsCard = ({ dailyLog, onUpdate, calories, overrides }) => {
+  const t = { ...MY_PLAN.dailyTargets, ...(overrides||{}) };
   const todayStr = new Date().toISOString().slice(0,10);
   const todayMeals = (calories||[]).filter(c => c.date && c.date.slice(0,10)===todayStr);
-  const calsIn = todayMeals.reduce((s,c)=>s+(c.cals||0),0);
-  const log = (dailyLog && dailyLog[todayStr]) || { water:0, steps:0, creatine:false };
+  const log = (dailyLog && dailyLog[todayStr]) || { water:0, steps:0, creatine:false, quickCals:0 };
+  const calsIn = todayMeals.reduce((s,c)=>s+(c.cals||0),0) + (log.quickCals||0);
+  const calVariance = calsIn - t.calories;
 
   const Ring = ({ value, target, color, label }) => {
     const pct = Math.min(100, (value/target)*100);
@@ -2167,6 +2168,33 @@ const DailyTargetsCard = ({ dailyLog, onUpdate, calories }) => {
         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:16 }}>
           <Ring value={calsIn} target={t.calories} color={C.amber}  label="kcal" />
           <Ring value={log.steps||0} target={t.steps} color={C.green} label="steps" />
+        </div>
+
+        {/* Quick-add calories */}
+        <div style={{ background:C.input, borderRadius:10, padding:"12px", marginBottom:12 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <span style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase" }}>Quick add calories</span>
+            <span style={{ fontSize:11, fontWeight:700, color: calVariance > 0 ? C.red : calVariance < -300 ? C.amber : C.green }}>
+              {calVariance >= 0 ? "+" : ""}{calVariance} vs plan
+            </span>
+          </div>
+          <div style={{ display:"flex", gap:6 }}>
+            {[100,200,500].map(n => (
+              <button key={n} onClick={()=>onUpdate(todayStr, { ...log, quickCals:(log.quickCals||0)+n })}
+                style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:7, padding:"9px 0", color:C.amber, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                +{n}
+              </button>
+            ))}
+            <button onClick={()=>onUpdate(todayStr, { ...log, quickCals:0 })}
+              style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:7, padding:"9px 12px", color:C.dim, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+              Reset
+            </button>
+          </div>
+          {(log.quickCals||0) > 0 && (
+            <div style={{ fontSize:10, color:C.dim, marginTop:6, textAlign:"center" }}>
+              {log.quickCals} kcal quick-added today
+            </div>
+          )}
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
           <div style={{ background:C.input, borderRadius:10, padding:"12px" }}>
@@ -2199,8 +2227,11 @@ const DailyTargetsCard = ({ dailyLog, onUpdate, calories }) => {
 };
 
 // My Programme reference panel
-const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
+const MyPlanPanel = ({ exercises, overrides, onSaveOverrides, onOpenExercise, onApplySplit }) => {
   const [tab, setTab] = useState("training");
+  const T = { ...MY_PLAN.dailyTargets, ...(overrides||{}) };
+  const [editForm, setEditForm] = useState(T);
+  const [savedMsg, setSavedMsg] = useState(false);
   const exMap = Object.fromEntries(exercises.map(e=>[e.id,e]));
   const today = DAYS[(new Date().getDay()+6)%7];
   return (
@@ -2215,7 +2246,7 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
         ))}
       </div>
       <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-        {[["training","Split"],["protocol","Protocol"],["nutrition","Food"]].map(([id,label])=>(
+        {[["training","Split"],["protocol","Protocol"],["nutrition","Food"],["targets","Edit"]].map(([id,label])=>(
           <button key={id} onClick={()=>setTab(id)}
             style={{ flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:tab===id?C.indigo:C.input, color:tab===id?"#fff":C.muted }}>{label}</button>
         ))}
@@ -2305,6 +2336,34 @@ const MyPlanPanel = ({ exercises, onOpenExercise, onApplySplit }) => {
               </div>
             </div>
           ))}
+        </Card>
+      )}
+
+      {tab==="targets" && (
+        <Card>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>Customise daily targets</div>
+          <div style={{ fontSize:11, color:C.dim, marginBottom:14, lineHeight:1.5 }}>Adjust your targets if your plan changes. These feed the Daily Targets rings and variance.</div>
+          {[
+            ["calories","Calories (kcal)"],["protein","Protein (g)"],["carbs","Carbs (g)"],["fat","Fat (g)"],
+            ["water","Water (L)"],["steps","Steps"],["creatine","Creatine (g)"],
+          ].map(([k,label])=>(
+            <div key={k} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <label style={{ fontSize:12, color:C.text }}>{label}</label>
+              <input type="number" value={editForm[k]} onChange={e=>setEditForm(f=>({ ...f, [k]:parseFloat(e.target.value)||0 }))}
+                style={{ width:110, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"8px 10px", color:C.text, fontSize:13, fontWeight:700, outline:"none", textAlign:"right" }} />
+            </div>
+          ))}
+          <div style={{ display:"flex", gap:8, marginTop:14 }}>
+            <button onClick={()=>{ setEditForm({ ...MY_PLAN.dailyTargets }); onSaveOverrides({}); setSavedMsg(true); setTimeout(()=>setSavedMsg(false),1500); }}
+              style={{ flex:1, background:C.input, border:`1px solid ${C.border}`, borderRadius:8, padding:"10px", color:C.muted, fontWeight:600, fontSize:12, cursor:"pointer" }}>
+              Reset to default
+            </button>
+            <button onClick={()=>{ onSaveOverrides(editForm); setSavedMsg(true); setTimeout(()=>setSavedMsg(false),1500); }}
+              style={{ flex:1, background:C.grad, border:"none", borderRadius:8, padding:"10px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>
+              Save targets
+            </button>
+          </div>
+          {savedMsg && <div style={{ textAlign:"center", color:C.green, fontSize:12, fontWeight:600, marginTop:8 }}>✓ Saved!</div>}
         </Card>
       )}
     </div>
@@ -3264,12 +3323,15 @@ export default function App() {
   const [calories,     setCalories]     = useState([]);
   const [cardioSessions, setCardioSessions] = useState([]);
   const [dailyLog,     setDailyLog]     = useState({});
+  const [planOverrides, setPlanOverrides] = useState({});   // { calories, protein, carbs, fat, water, steps, creatine }
 
   const [activeTab,   setActiveTab]   = useState("dashboard");
   const [detailId,    setDetailId]    = useState(null);
   const [navHistory,  setNavHistory]  = useState([]);
   const [showAdd,     setShowAdd]     = useState(false);
   const [groupFilter, setGroupFilter] = useState("All");
+  const [exView,      setExView]      = useState("list");   // "list" | "charts"
+  const [exSort,      setExSort]      = useState("group");  // "group"|"recent"|"notstarted"|"best"
   const [infoEx,      setInfoEx]      = useState(null);
   const [chartType,   setChartType]   = useState("line");
   const [timeFilter,  setTimeFilter]  = useState(null);
@@ -3422,8 +3484,7 @@ export default function App() {
     { id:"dashboard", icon:"🏠", label:"Home"   },
     { id:"myplan",    icon:"🎯", label:"Plan+"  },
     { id:"plan",      icon:"📅", label:"Plan"   },
-    { id:"exercises", icon:"💪", label:"Exs"    },
-    { id:"overview",  icon:"📈", label:"Charts" },
+    { id:"exercises", icon:"💪", label:"Log"    },
     { id:"stats",     icon:"⭐", label:"Stats"  },
   ];
 
@@ -3524,8 +3585,19 @@ export default function App() {
               <span style={{ fontSize:12, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em" }}>{exercises.length} exercises</span>
               <Btn small onClick={() => setShowAdd(true)}>+ Add</Btn>
             </div>
+
+            {/* View toggle: List / Charts */}
+            <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+              {[["list","📋 List"],["charts","📈 Charts"]].map(([id,label]) => (
+                <button key={id} onClick={() => setExView(id)}
+                  style={{ flex:1, padding:"8px 0", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:700, background:exView===id ? C.indigo : C.input, color:exView===id ? "#fff" : C.muted }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {/* Group filter */}
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14, overflowX:"auto", paddingBottom:4 }}>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10, overflowX:"auto", paddingBottom:4 }}>
               {["All","Favourites",...GROUPS,"Custom"].map(g => (
                 <button key={g} onClick={() => setGroupFilter(g)}
                   style={{ padding:"5px 11px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:600, background:groupFilter===g ? C.indigo : C.input, color:groupFilter===g ? "#fff" : C.muted, whiteSpace:"nowrap", flexShrink:0 }}>
@@ -3533,6 +3605,43 @@ export default function App() {
                 </button>
               ))}
             </div>
+
+            {/* Sort options */}
+            <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+              <span style={{ fontSize:10, color:C.dim, fontWeight:600, alignSelf:"center", textTransform:"uppercase" }}>Sort:</span>
+              {[["group","Default"],["recent","Most recent"],["notstarted","Not started"],["best","Best %"]].map(([id,label]) => (
+                <button key={id} onClick={() => setExSort(id)}
+                  style={{ padding:"4px 10px", borderRadius:6, border:`1px solid ${exSort===id ? C.indigo : C.border}`, cursor:"pointer", fontSize:10, fontWeight:600, background:exSort===id ? C.indigo+"22" : C.input, color:exSort===id ? C.indigo : C.muted, whiteSpace:"nowrap" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Charts view controls */}
+            {exView === "charts" && (
+              <Card style={{ marginBottom:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
+                  <div style={{ display:"flex", gap:6 }}>
+                    {["line","bar"].map(t => (
+                      <button key={t} onClick={() => setChartType(t)}
+                        style={{ padding:"6px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, background:chartType===t ? C.indigo : C.input, color:chartType===t ? "#fff" : C.muted }}>
+                        {t === "line" ? "📈 Line" : "📊 Bar"}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display:"flex", gap:6 }}>
+                    {TIME_FILTERS.map(f => (
+                      <button key={f.label} onClick={() => setTimeFilter(f.days)}
+                        style={{ padding:"6px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, background:timeFilter===f.days ? C.indigo : C.input, color:timeFilter===f.days ? "#fff" : C.muted }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Filtered + sorted exercise list */}
             {exercises
               .filter(ex => {
                 if (groupFilter === "All") return true;
@@ -3540,70 +3649,63 @@ export default function App() {
                 if (groupFilter === "Custom") return !!ex.custom;
                 return (ex.group || "Custom") === groupFilter;
               })
-              .map(ex => (
-                <ExerciseCard
-                  key={ex.id}
-                  ex={ex}
-                  latestEntry={getLatest(ex.id)}
-                  logCount={(logs[ex.id]||[]).length}
-                  scheduledDays={DAYS.filter(d => (plan[d]||[]).includes(ex.id))}
-                  isFav={favourites.includes(ex.id)}
-                  onTap={() => openExercise(ex.id, "Exercises")}
-                  onFavToggle={() => toggleFav(ex.id)}
-                  onInfo={ex => setInfoEx(ex)}
-                />
-              ))
+              .slice()
+              .sort((a, b) => {
+                if (exSort === "recent") {
+                  const la = getLatest(a.id)?.date ? new Date(getLatest(a.id).date).getTime() : 0;
+                  const lb = getLatest(b.id)?.date ? new Date(getLatest(b.id).date).getTime() : 0;
+                  return lb - la;
+                }
+                if (exSort === "notstarted") {
+                  const ca = (logs[a.id]||[]).length, cb = (logs[b.id]||[]).length;
+                  return ca - cb; // fewest logs first
+                }
+                if (exSort === "best") {
+                  return progressPct(getLatest(b.id), b) - progressPct(getLatest(a.id), a);
+                }
+                return 0; // default/group = original order
+              })
+              .map(ex => {
+                if (exView === "charts") {
+                  const entries = filterTime(logs[ex.id]||[], timeFilter);
+                  const latest  = getLatest(ex.id);
+                  const pct     = progressPct(latest, ex);
+                  const bc      = barColor(pct);
+                  const vals    = entries.map(e => ex.bw ? e.reps : e.weight).filter(Boolean);
+                  const gain    = vals.length >= 2 ? vals[vals.length - 1] - vals[0] : null;
+                  const unit    = ex.bw ? ` ${ex.unit}` : "kg";
+                  return (
+                    <Card key={ex.id} onClick={() => openExercise(ex.id, "Exercises")}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                        <span style={{ fontSize:13, fontWeight:700 }}>{ex.name}</span>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          {gain !== null && <span style={{ fontSize:11, color:gain >= 0 ? C.green : C.red, fontWeight:700 }}>{gain >= 0 ? "▲" : "▼"}{Math.abs(gain)}{unit}</span>}
+                          <span style={{ fontSize:11, color:C.muted }}>tap →</span>
+                        </div>
+                      </div>
+                      <ExChart ex={ex} entries={entries} chartType={chartType} />
+                      <div style={{ marginTop:8 }}>
+                        <ProgressBar pct={pct} color={bc} />
+                        <div style={{ fontSize:11, color:C.muted, marginTop:4, textAlign:"right" }}>{pct}% to peak</div>
+                      </div>
+                    </Card>
+                  );
+                }
+                return (
+                  <ExerciseCard
+                    key={ex.id}
+                    ex={ex}
+                    latestEntry={getLatest(ex.id)}
+                    logCount={(logs[ex.id]||[]).length}
+                    scheduledDays={DAYS.filter(d => (plan[d]||[]).includes(ex.id))}
+                    isFav={favourites.includes(ex.id)}
+                    onTap={() => openExercise(ex.id, "Exercises")}
+                    onFavToggle={() => toggleFav(ex.id)}
+                    onInfo={ex => setInfoEx(ex)}
+                  />
+                );
+              })
             }
-          </>
-        )}
-
-        {!detailId && activeTab === "overview" && (
-          <>
-            <Card style={{ marginBottom:16 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
-                <div style={{ display:"flex", gap:6 }}>
-                  {["line","bar"].map(t => (
-                    <button key={t} onClick={() => setChartType(t)}
-                      style={{ padding:"6px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, background:chartType===t ? C.indigo : C.input, color:chartType===t ? "#fff" : C.muted }}>
-                      {t === "line" ? "📈 Line" : "📊 Bar"}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display:"flex", gap:6 }}>
-                  {TIME_FILTERS.map(f => (
-                    <button key={f.label} onClick={() => setTimeFilter(f.days)}
-                      style={{ padding:"6px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, background:timeFilter===f.days ? C.indigo : C.input, color:timeFilter===f.days ? "#fff" : C.muted }}>
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </Card>
-            {exercises.map(ex => {
-              const entries = filterTime(logs[ex.id]||[], timeFilter);
-              const latest  = getLatest(ex.id);
-              const pct     = progressPct(latest, ex);
-              const bc      = barColor(pct);
-              const vals    = entries.map(e => ex.bw ? e.reps : e.weight).filter(Boolean);
-              const gain    = vals.length >= 2 ? vals[vals.length - 1] - vals[0] : null;
-              const unit    = ex.bw ? ` ${ex.unit}` : "kg";
-              return (
-                <Card key={ex.id} onClick={() => openExercise(ex.id, "Overview")}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                    <span style={{ fontSize:13, fontWeight:700 }}>{ex.name}</span>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      {gain !== null && <span style={{ fontSize:11, color:gain >= 0 ? C.green : C.red, fontWeight:700 }}>{gain >= 0 ? "▲" : "▼"}{Math.abs(gain)}{unit}</span>}
-                      <span style={{ fontSize:11, color:C.muted }}>tap →</span>
-                    </div>
-                  </div>
-                  <ExChart ex={ex} entries={entries} chartType={chartType} />
-                  <div style={{ marginTop:8 }}>
-                    <ProgressBar pct={pct} color={bc} />
-                    <div style={{ fontSize:11, color:C.muted, marginTop:4, textAlign:"right" }}>{pct}% to peak</div>
-                  </div>
-                </Card>
-              );
-            })}
           </>
         )}
 
@@ -3613,9 +3715,12 @@ export default function App() {
               dailyLog={dailyLog}
               onUpdate={(date, log) => setDailyLog({ ...dailyLog, [date]:log })}
               calories={calories}
+              overrides={planOverrides}
             />
             <MyPlanPanel
               exercises={exercises}
+              overrides={planOverrides}
+              onSaveOverrides={setPlanOverrides}
               onOpenExercise={id => openExercise(id, "Plan+")}
               onApplySplit={async () => {
                 const newPlan = {};
@@ -3721,7 +3826,7 @@ export default function App() {
           width:"100%", maxWidth:600,
           background:"linear-gradient(135deg,#1a1a2e,#16162a)",
           borderTop:`1px solid ${C.border}`,
-          display:"grid", gridTemplateColumns:"repeat(6,1fr)",
+          display:"grid", gridTemplateColumns:"repeat(5,1fr)",
           zIndex:50,
           paddingBottom:"env(safe-area-inset-bottom, 0px)",
         }}>
