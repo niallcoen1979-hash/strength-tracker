@@ -1334,13 +1334,8 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
         calorieTarget={calorieTarget}
       />
 
-      {/* Simple calorie tracker */}
-      <HomeCalorieTracker
-        dailyLog={dailyLog}
-        onUpdate={onUpdateDailyLog}
-        calorieTarget={calorieTarget}
-        onViewHistory={onViewCalorieHistory}
-      />
+      {/* Muscle coverage — directly below This week */}
+      <MuscleMapPanel logs={logs} exercises={exercises} />
 
       {/* Cardio tracker */}
       <HomeCardioTracker
@@ -1359,9 +1354,6 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
           💪 Session logged today. Keep it up!
         </div>
       )}
-
-      {/* Muscle map */}
-      <MuscleMapPanel logs={logs} exercises={exercises} />
 
       {/* Session summary */}
       <SessionSummary logs={logs} exercises={exercises} calories={calories} cardioSessions={cardioSessions} profile={profile} />
@@ -1397,6 +1389,14 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
           })}
         </Card>
       )}
+
+      {/* Simple calorie tracker — just above Favourites */}
+      <HomeCalorieTracker
+        dailyLog={dailyLog}
+        onUpdate={onUpdateDailyLog}
+        calorieTarget={calorieTarget}
+        onViewHistory={onViewCalorieHistory}
+      />
 
       {/* Favourites */}
       {favourites.length > 0 && <>
@@ -1840,31 +1840,44 @@ const HomeCalorieTracker = ({ dailyLog, onUpdate, calorieTarget, onViewHistory }
       </div>
       <div style={{ fontSize:12, fontWeight:700, color:varColor, marginBottom:10 }}>{varText}</div>
 
-      {/* progress bar */}
-      <div style={{ background:"#1e1e2e", borderRadius:6, height:8, overflow:"hidden", marginBottom:12, position:"relative" }}>
-        <div style={{ position:"absolute", left:0, top:0, height:"100%", width:`${pct}%`, background: variance > 0 ? C.red : C.green, borderRadius:6, transition:"width .3s" }} />
-      </div>
+      {/* Slider with target marker (0–4000 kcal) */}
+      {(() => {
+        const MAX = 4000;
+        const targetPct = Math.min(100, (calorieTarget / MAX) * 100);
+        return (
+          <div style={{ marginBottom:6, position:"relative", paddingTop:18 }}>
+            {/* Target marker */}
+            <div style={{ position:"absolute", top:0, left:`${targetPct}%`, transform:"translateX(-50%)", textAlign:"center" }}>
+              <div style={{ fontSize:9, color:C.green, fontWeight:700, whiteSpace:"nowrap" }}>🎯 {calorieTarget}</div>
+              <div style={{ width:2, height:8, background:C.green, margin:"0 auto" }} />
+            </div>
+            <input
+              type="range" min="0" max={MAX} step="50"
+              value={cals}
+              onChange={e => set(parseInt(e.target.value))}
+              style={{ width:"100%", accentColor: variance > 0 ? C.red : C.green, cursor:"pointer" }}
+            />
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:C.dim, marginTop:2 }}>
+              <span>0</span><span>{MAX} kcal</span>
+            </div>
+          </div>
+        );
+      })()}
 
-      {/* quick add buttons */}
-      <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-        {[50,100,250,500].map(n => (
-          <button key={n} onClick={()=>set(cals+n)}
-            style={{ flex:1, background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"9px 0", color:C.amber, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-            +{n}
-          </button>
-        ))}
-      </div>
-      <div style={{ display:"flex", gap:6 }}>
-        {[50,100,250,500].map(n => (
-          <button key={n} onClick={()=>set(cals-n)}
+      {/* Fine nudge buttons */}
+      <div style={{ display:"flex", gap:6, marginTop:8 }}>
+        {[50,100,250].map(n => (
+          <button key={"m"+n} onClick={()=>set(cals-n)}
             style={{ flex:1, background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 0", color:C.muted, fontSize:12, fontWeight:600, cursor:"pointer" }}>
             −{n}
           </button>
         ))}
-        <button onClick={()=>set(0)}
-          style={{ background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 12px", color:C.dim, fontSize:12, fontWeight:600, cursor:"pointer" }}>
-          Reset
-        </button>
+        {[50,100,250].map(n => (
+          <button key={"p"+n} onClick={()=>set(cals+n)}
+            style={{ flex:1, background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 0", color:C.amber, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            +{n}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -3478,7 +3491,7 @@ export default function App() {
   const [navHistory,  setNavHistory]  = useState([]);
   const [showAdd,     setShowAdd]     = useState(false);
   const [groupFilter, setGroupFilter] = useState("All");
-  const [exView,      setExView]      = useState("list");   // "list" | "charts"
+  const [exView,      setExView]      = useState("charts"); // "list" | "charts"
   const [exSort,      setExSort]      = useState("group");  // "group"|"recent"|"notstarted"|"best"
   const [infoEx,      setInfoEx]      = useState(null);
   const [chartType,   setChartType]   = useState("line");
