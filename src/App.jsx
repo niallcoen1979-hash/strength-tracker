@@ -267,7 +267,8 @@ function sessionsToLogs(sessions) {
 async function loadUserData(userId) {
   const [
     profileRes, sessionsRes, customExRes,
-    weightsRes, checkinsRes, planRes, favsRes
+    weightsRes, checkinsRes, planRes, favsRes,
+    dailyLogRes, cardioRes
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase.from("sessions").select("*").eq("user_id", userId).order("logged_date", { ascending: true }),
@@ -276,6 +277,8 @@ async function loadUserData(userId) {
     supabase.from("checkins").select("*").eq("user_id", userId).order("checkin_date", { ascending: false }),
     supabase.from("weekly_plan").select("*").eq("user_id", userId).single(),
     supabase.from("favourites").select("exercise_id").eq("user_id", userId),
+    supabase.from("daily_log").select("*").eq("user_id", userId),
+    supabase.from("cardio_sessions").select("*").eq("user_id", userId).order("logged_date", { ascending: false }),
   ]);
   return {
     profile:    profileRes.data,
@@ -285,7 +288,26 @@ async function loadUserData(userId) {
     photos:     (checkinsRes.data || []).map(c => ({ id:c.id, date:c.checkin_date, note:c.note })),
     plan:       planRes.data?.plan || EMPTY_PLAN,
     favourites: (favsRes.data || []).map(f => f.exercise_id),
+    dailyLog:   dailyLogToObject(dailyLogRes.data),
+    cardio:     (cardioRes.data || []).map(s => ({
+                  id:s.id, date:s.logged_date, type:s.cardio_type, name:s.name,
+                  icon:s.icon, duration:s.duration, intensity:s.intensity, cals_burned:s.cals_burned
+                })),
   };
+}
+
+// Convert daily_log rows into { "YYYY-MM-DD": {calsTotal, water, steps, creatine} }
+function dailyLogToObject(rows) {
+  const obj = {};
+  (rows || []).forEach(r => {
+    obj[r.log_date] = {
+      calsTotal: r.cals_total || 0,
+      water:     r.water || 0,
+      steps:     r.steps || 0,
+      creatine:  r.creatine || false,
+    };
+  });
+  return obj;
 }
 
 async function saveProfile(userId, profile) {
@@ -354,6 +376,35 @@ async function saveCheckin(userId, photo) {
 
 async function deleteCheckin(id) {
   await supabase.from("checkins").delete().eq("id", id);
+}
+
+// Upsert one day's daily log (calories/water/steps/creatine)
+async function saveDailyLog(userId, dateStr, log) {
+  const { error } = await supabase.from("daily_log").upsert({
+    user_id: userId,
+    log_date: dateStr,
+    cals_total: log.calsTotal || 0,
+    water: log.water || 0,
+    steps: log.steps || 0,
+    creatine: log.creatine || false,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id,log_date" });
+  if (error) console.error("saveDailyLog error:", error);
+}
+
+async function saveCardioSession(userId, s) {
+  const { data, error } = await supabase.from("cardio_sessions").insert({
+    user_id: userId,
+    logged_date: s.date.slice(0,10),
+    cardio_type: s.type, name: s.name, icon: s.icon,
+    duration: s.duration, intensity: s.intensity, cals_burned: s.cals_burned,
+  }).select().single();
+  if (error) console.error("saveCardioSession error:", error);
+  return data;
+}
+
+async function deleteCardioSession(id) {
+  await supabase.from("cardio_sessions").delete().eq("id", id);
 }
 
 async function toggleFavouriteDB(userId, exId, isFav) {
@@ -971,6 +1022,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
           onClose={() => setConfirmRemove(false)}
         />
       )}
+      {showInfo && <ExerciseInfoModal ex={ex} onClose={() => setShowInfo(false)} />}
     </div>
   );
 };
@@ -1131,7 +1183,106 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, pr
 // ─────────────────────────────────────────────
 // Dashboard
 // ─────────────────────────────────────────────
-const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakData, calories, cardioSessions, profile }) => {
+// ─────────────────────────────────────────────
+// Weekly traffic-light tracker (Mon–Sun)
+// Green = done/on-target, Amber = attempted/off, Blank = nothing or rest day
+// Rest days are never punished.
+// ─────────────────────────────────────────────
+const WeeklyTrafficLights = ({ logs, plan, exercises, calories, dailyLog, calorieTarget }) => {
+  // Get the Monday of the current week
+  const now = new Date();
+  const dayIdx = (now.getDay() + 6) % 7; // 0 = Monday
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - dayIdx);
+  monday.setHours(0,0,0,0);
+
+  const todayStr = now.toISOString().slice(0,10);
+  const exIds = new Set(exercises.map(e => e.id));
+
+  const days = DAYS.map((dayName, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const ds = d.toISOString().slice(0,10);
+    const isFuture = d > now && ds !== todayStr;
+    const isToday  = ds === todayStr;
+
+    // Is this a planned training day?
+    const planned = (plan[dayName] || []).length > 0;
+
+    // Did any session get logged on this date?
+    let trained = false;
+    for (const id of Object.keys(logs)) {
+      if ((logs[id] || []).some(e => e.date && e.date.slice(0,10) === ds)) { trained = true; break; }
+    }
+
+    // PLAN light
+    let planLight = "blank";
+    if (trained) planLight = "green";                       // trained — always good
+    else if (planned && !isFuture) planLight = "amber";     // planned but missed (past/today)
+    // rest day (not planned) with no session = blank — never punished
+
+    // CALORIES light — from simple daily total
+    const dayCals = (dailyLog && dailyLog[ds] && dailyLog[ds].calsTotal) || 0;
+    let calLight = "blank";
+    if (dayCals > 0) {
+      // Within 15% of target = green, otherwise amber
+      const diff = Math.abs(dayCals - calorieTarget) / calorieTarget;
+      calLight = diff <= 0.15 ? "green" : "amber";
+    }
+
+    return { dayName, short: DAY_SHORT[i], isToday, isFuture, planLight, calLight };
+  });
+
+  const dot = (state) => {
+    const map = { green:C.green, amber:C.amber, blank:"transparent" };
+    return (
+      <div style={{
+        width:14, height:14, borderRadius:"50%",
+        background: map[state],
+        border: state === "blank" ? `1.5px solid ${C.border}` : "none",
+      }} />
+    );
+  };
+
+  return (
+    <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+      <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:12 }}>This week</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
+        {days.map((d,i) => (
+          <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7,
+            background: d.isToday ? C.input : "transparent", borderRadius:8, padding:"8px 2px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color: d.isToday ? C.text : C.muted }}>{d.short}</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:5, alignItems:"center", opacity: d.isFuture ? 0.35 : 1 }}>
+              {dot(d.planLight)}
+              {dot(d.calLight)}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Legend */}
+      <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:12, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <div style={{ width:10, height:10, borderRadius:"50%", background:C.green }} />
+          <span style={{ fontSize:9, color:C.muted }}>On track</span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <div style={{ width:10, height:10, borderRadius:"50%", background:C.amber }} />
+          <span style={{ fontSize:9, color:C.muted }}>Off / missed</span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <div style={{ width:10, height:10, borderRadius:"50%", background:"transparent", border:`1.5px solid ${C.border}` }} />
+          <span style={{ fontSize:9, color:C.muted }}>Rest / none</span>
+        </div>
+      </div>
+      <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:8 }}>
+        <span style={{ fontSize:9, color:C.dim }}>● Top row = Training</span>
+        <span style={{ fontSize:9, color:C.dim }}>● Bottom row = Calories</span>
+      </div>
+    </div>
+  );
+};
+
+const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakData, calories, cardioSessions, profile, dailyLog, calorieTarget, onUpdateDailyLog, onAddCardio, onDeleteCardio, onViewCalorieHistory }) => {
   const today = todayName();
   const todayPlan = plan[today] || [];
   const exMap = Object.fromEntries(exercises.map(e => [e.id, e]));
@@ -1173,29 +1324,30 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
         ))}
       </div>
 
-      {/* Streak row on dashboard */}
-      {(streakData.currentStreak > 0 || streakData.weeksCompleted > 0) && (
-        <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-          {streakData.currentStreak > 0 && (
-            <div style={{ flex:1, background:"#0f2a1a", border:"1px solid #1a4a2a", borderRadius:8, padding:"8px 10px", display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontSize:16 }}>🔥</span>
-              <div>
-                <div style={{ fontSize:14, fontWeight:800, color:C.green }}>{streakData.currentStreak}</div>
-                <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase" }}>day streak</div>
-              </div>
-            </div>
-          )}
-          {streakData.weeksCompleted > 0 && (
-            <div style={{ flex:1, background:"#1a1a2e", border:`1px solid ${C.indigo}44`, borderRadius:8, padding:"8px 10px", display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontSize:16 }}>📅</span>
-              <div>
-                <div style={{ fontSize:14, fontWeight:800, color:C.indigo }}>{streakData.weeksCompleted}</div>
-                <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase" }}>full week{streakData.weeksCompleted!==1?"s":""}</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Weekly traffic lights */}
+      <WeeklyTrafficLights
+        logs={logs}
+        plan={plan}
+        exercises={exercises}
+        calories={calories}
+        dailyLog={dailyLog}
+        calorieTarget={calorieTarget}
+      />
+
+      {/* Simple calorie tracker */}
+      <HomeCalorieTracker
+        dailyLog={dailyLog}
+        onUpdate={onUpdateDailyLog}
+        calorieTarget={calorieTarget}
+        onViewHistory={onViewCalorieHistory}
+      />
+
+      {/* Cardio tracker */}
+      <HomeCardioTracker
+        cardioSessions={cardioSessions}
+        onAdd={onAddCardio}
+        onDelete={onDeleteCardio}
+      />
       {streakData.muscleGroupWarnings.length > 0 && (
         <div style={{ background:"#2a1a0a", border:"1px solid #4a3a0a", borderRadius:8, padding:"8px 12px", marginBottom:10, fontSize:11, color:C.amber }}>
           ⚠️ Recovery: {streakData.muscleGroupWarnings.join(", ")} hit 3+ days running — rest these groups today.
@@ -1661,215 +1813,211 @@ function estimateCardioCals(typeId, durationMins, intensity) {
 // ─────────────────────────────────────────────
 // CALORIE TRACKER
 // ─────────────────────────────────────────────
-const CalorieTracker = ({ calories, cardioSessions, profile, onAddMeal, onDeleteMeal, onAddCardio, onDeleteCardio }) => {
-  const [mealForm, setMealForm]       = useState({ name:"", cals:"", protein:"", carbs:"", fat:"" });
-  const [cardioForm, setCardioForm]   = useState({ type:"crosstrainer", duration:"", intensity:5, notes:"" });
-  const [activeSection, setSection]   = useState("log"); // "log" | "cardio" | "history"
-  const [saved, setSaved]             = useState(false);
-
+const HomeCalorieTracker = ({ dailyLog, onUpdate, calorieTarget, onViewHistory }) => {
   const todayStr = new Date().toISOString().slice(0,10);
-  const todayMeals    = (calories   || []).filter(c => c.date?.slice(0,10) === todayStr);
-  const todayCardio   = (cardioSessions || []).filter(c => c.date?.slice(0,10) === todayStr);
-  const totalIn       = todayMeals.reduce((s, c) => s + (c.cals || 0), 0);
-  const totalBurned   = todayCardio.reduce((s, c) => s + (c.cals_burned || 0), 0);
+  const log = (dailyLog && dailyLog[todayStr]) || {};
+  const cals = log.calsTotal || 0;
+  const variance = cals - calorieTarget;
+  const pct = Math.min(100, calorieTarget ? (cals/calorieTarget)*100 : 0);
+  const set = (v) => onUpdate(todayStr, { ...log, calsTotal: Math.max(0, v) });
 
-  // BMR estimate (Mifflin-St Jeor)
-  const bmr = (() => {
-    const w = parseFloat(profile?.weight) || 85;
-    const h = parseFloat(profile?.height) || 175;
-    const a = parseInt(profile?.age) || 40;
-    return Math.round(10*w + 6.25*h - 5*a + 5); // male
-  })();
-  const tdee = Math.round(bmr * 1.4); // moderate activity
-  const deficit = tdee + totalBurned - totalIn;
-  const goal = profile?.goal || "";
-  const targetDeficit = goal.includes("Fat loss") || goal.includes("fat") ? 500 : 0;
-
-  const addMeal = () => {
-    if (!mealForm.name || !mealForm.cals) return;
-    onAddMeal({ id:uid(), date:new Date().toISOString(), name:mealForm.name, cals:parseInt(mealForm.cals), protein:parseInt(mealForm.protein)||0, carbs:parseInt(mealForm.carbs)||0, fat:parseInt(mealForm.fat)||0 });
-    setMealForm({ name:"", cals:"", protein:"", carbs:"", fat:"" });
-    setSaved(true); setTimeout(()=>setSaved(false), 1500);
-  };
-
-  const addCardio = () => {
-    if (!cardioForm.duration) return;
-    const burned = estimateCardioCals(cardioForm.type, parseInt(cardioForm.duration), cardioForm.intensity);
-    const type = CARDIO_TYPES.find(t=>t.id===cardioForm.type);
-    onAddCardio({ id:uid(), date:new Date().toISOString(), type:cardioForm.type, name:type?.name, icon:type?.icon, duration:parseInt(cardioForm.duration), intensity:cardioForm.intensity, cals_burned:burned, notes:cardioForm.notes });
-    setCardioForm({ type:"crosstrainer", duration:"", intensity:5, notes:"" });
-    setSaved(true); setTimeout(()=>setSaved(false), 1500);
-  };
-
-  const deficitColor = deficit >= targetDeficit ? C.green : deficit >= 0 ? C.amber : C.red;
+  const varColor = cals === 0 ? C.dim : variance > 0 ? C.red : variance < -400 ? C.amber : C.green;
+  const varText  = cals === 0 ? "Not logged yet"
+    : variance === 0 ? "Bang on target"
+    : variance > 0 ? `${variance} over target`
+    : `${Math.abs(variance)} under target`;
 
   return (
-    <div>
-      <SectionLabel>Today's Calories</SectionLabel>
-
-      {/* Summary tiles */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
-        {[
-          { label:"Consumed",  value:totalIn,             unit:"kcal", color:C.amber  },
-          { label:"Burned",    value:totalBurned,         unit:"kcal", color:C.green  },
-          { label:deficit>=0?"Deficit":"Surplus", value:Math.abs(deficit), unit:"kcal", color:deficitColor },
-        ].map(s=>(
-          <div key={s.label} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 10px" }}>
-            <div style={{ fontSize:9, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:3 }}>{s.label}</div>
-            <div style={{ fontSize:16, fontWeight:800, color:s.color }}>{s.value}</div>
-            <div style={{ fontSize:9, color:C.dim }}>{s.unit}</div>
-          </div>
-        ))}
+    <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <span style={{ fontSize:12, fontWeight:700, color:C.text }}>Calories today</span>
+        <button onClick={onViewHistory} style={{ background:"none", border:"none", color:C.indigo, fontSize:11, fontWeight:600, cursor:"pointer" }}>History →</button>
       </div>
 
-      {/* TDEE bar */}
-      <Card style={{ marginBottom:12 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.muted, marginBottom:6 }}>
-          <span>Calories in: {totalIn} kcal</span>
-          <span>TDEE target: {tdee} kcal</span>
-        </div>
-        <div style={{ background:"#1e1e2e", borderRadius:6, height:8, overflow:"hidden", position:"relative" }}>
-          <div style={{ position:"absolute", left:0, top:0, height:"100%", width:`${Math.min(100,(totalIn/tdee)*100)}%`, background:totalIn>tdee?C.red:C.indigo, borderRadius:6, transition:"width .4s" }} />
-          {targetDeficit > 0 && (
-            <div style={{ position:"absolute", left:`${((tdee-targetDeficit)/tdee)*100}%`, top:0, width:2, height:"100%", background:C.green }} />
-          )}
-        </div>
-        {targetDeficit > 0 && <div style={{ fontSize:9, color:C.green, marginTop:4 }}>🎯 Fat loss target: {tdee-targetDeficit} kcal/day (500 kcal deficit)</div>}
-      </Card>
+      <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:4 }}>
+        <span style={{ fontSize:28, fontWeight:800, color:C.text }}>{cals}</span>
+        <span style={{ fontSize:13, color:C.dim }}>/ {calorieTarget} kcal</span>
+      </div>
+      <div style={{ fontSize:12, fontWeight:700, color:varColor, marginBottom:10 }}>{varText}</div>
 
-      {/* Section tabs */}
-      <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-        {[["log","🍽 Log meal"],["cardio","🏃 Cardio"],["history","📋 History"]].map(([id,label])=>(
-          <button key={id} onClick={()=>setSection(id)}
-            style={{ flex:1, padding:"7px 0", borderRadius:7, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, background:activeSection===id?C.indigo:C.input, color:activeSection===id?"#fff":C.muted }}>
-            {label}
+      {/* progress bar */}
+      <div style={{ background:"#1e1e2e", borderRadius:6, height:8, overflow:"hidden", marginBottom:12, position:"relative" }}>
+        <div style={{ position:"absolute", left:0, top:0, height:"100%", width:`${pct}%`, background: variance > 0 ? C.red : C.green, borderRadius:6, transition:"width .3s" }} />
+      </div>
+
+      {/* quick add buttons */}
+      <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+        {[50,100,250,500].map(n => (
+          <button key={n} onClick={()=>set(cals+n)}
+            style={{ flex:1, background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"9px 0", color:C.amber, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+            +{n}
           </button>
         ))}
       </div>
+      <div style={{ display:"flex", gap:6 }}>
+        {[50,100,250,500].map(n => (
+          <button key={n} onClick={()=>set(cals-n)}
+            style={{ flex:1, background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 0", color:C.muted, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+            −{n}
+          </button>
+        ))}
+        <button onClick={()=>set(0)}
+          style={{ background:C.input, border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 12px", color:C.dim, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+};
 
-      {/* Log meal */}
-      {activeSection==="log" && (
-        <Card>
-          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Add food / meal</div>
-          <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-            <input placeholder="e.g. Chicken & rice" value={mealForm.name} onChange={e=>setMealForm(f=>({...f,name:e.target.value}))}
-              style={{ flex:2, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:12, outline:"none" }} />
-            <input placeholder="kcal" type="number" value={mealForm.cals} onChange={e=>setMealForm(f=>({...f,cals:e.target.value}))}
-              style={{ flex:1, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:12, outline:"none" }} />
-          </div>
-          <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-            <input placeholder="Protein g" type="number" value={mealForm.protein} onChange={e=>setMealForm(f=>({...f,protein:e.target.value}))}
-              style={{ flex:1, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"8px 10px", color:C.text, fontSize:11, outline:"none" }} />
-            <input placeholder="Carbs g" type="number" value={mealForm.carbs} onChange={e=>setMealForm(f=>({...f,carbs:e.target.value}))}
-              style={{ flex:1, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"8px 10px", color:C.text, fontSize:11, outline:"none" }} />
-            <input placeholder="Fat g" type="number" value={mealForm.fat} onChange={e=>setMealForm(f=>({...f,fat:e.target.value}))}
-              style={{ flex:1, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"8px 10px", color:C.text, fontSize:11, outline:"none" }} />
-          </div>
-          <button onClick={addMeal} style={{ width:"100%", background:C.grad, border:"none", borderRadius:7, padding:"9px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>Add meal</button>
-          {saved && <div style={{ textAlign:"center", color:C.green, fontSize:11, marginTop:6 }}>✓ Saved!</div>}
-          {todayMeals.length > 0 && (
-            <div style={{ marginTop:12 }}>
-              <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Today's meals</div>
-              {todayMeals.map((m,i)=>(
-                <div key={m.id||i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderTop:`1px solid ${C.border}` }}>
-                  <span style={{ fontSize:12, color:C.text }}>{m.name}</span>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ fontSize:12, fontWeight:700, color:C.amber }}>{m.cals} kcal</span>
-                    <button onClick={()=>onDeleteMeal(m.id||i)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:14 }}>×</button>
-                  </div>
-                </div>
-              ))}
-              <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:`1px solid ${C.border}`, marginTop:4 }}>
-                <span style={{ fontSize:11, fontWeight:700, color:C.muted }}>Total</span>
-                <span style={{ fontSize:13, fontWeight:800, color:C.amber }}>{totalIn} kcal</span>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
+// ─────────────────────────────────────────────
+// HOME: Cardio tracker (multiple sessions/day)
+// ─────────────────────────────────────────────
+const HomeCardioTracker = ({ cardioSessions, onAdd, onDelete }) => {
+  const [type, setType]         = useState("crosstrainer");
+  const [duration, setDuration] = useState("");
+  const [intensity, setIntensity] = useState(5);
+  const [open, setOpen]         = useState(false);
 
-      {/* Log cardio */}
-      {activeSection==="cardio" && (
-        <Card>
-          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Log cardio session</div>
-          <label style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:6, display:"block" }}>Activity</label>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
-            {CARDIO_TYPES.map(t=>(
-              <button key={t.id} onClick={()=>setCardioForm(f=>({...f,type:t.id}))}
-                style={{ padding:"8px 4px", borderRadius:8, border:`1px solid ${cardioForm.type===t.id?C.indigo:C.border}`, background:cardioForm.type===t.id?C.indigo+"22":C.input, color:cardioForm.type===t.id?C.indigo:C.muted, cursor:"pointer", fontSize:10, fontWeight:600, textAlign:"center" }}>
-                <div style={{ fontSize:18, marginBottom:2 }}>{t.icon}</div>
-                <div style={{ fontSize:9 }}>{t.name.split(" ")[0]}</div>
-              </button>
-            ))}
+  const todayStr = new Date().toISOString().slice(0,10);
+  const todaySessions = (cardioSessions||[]).filter(c => c.date && c.date.slice(0,10)===todayStr);
+  const todayBurned   = todaySessions.reduce((s,c)=>s+(c.cals_burned||0),0);
+
+  const add = () => {
+    if (!duration) return;
+    const t = CARDIO_TYPES.find(x=>x.id===type);
+    const burned = estimateCardioCals(type, parseInt(duration), intensity);
+    onAdd({ id:uid(), date:new Date().toISOString(), type, name:t?.name, icon:t?.icon, duration:parseInt(duration), intensity, cals_burned:burned });
+    setDuration(""); setIntensity(5); setOpen(false);
+  };
+
+  return (
+    <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:todaySessions.length||open?10:0 }}>
+        <div>
+          <span style={{ fontSize:12, fontWeight:700, color:C.text }}>Cardio today</span>
+          {todayBurned > 0 && <span style={{ fontSize:11, color:C.green, marginLeft:8 }}>{todayBurned} kcal burned</span>}
+        </div>
+        <button onClick={()=>setOpen(o=>!o)}
+          style={{ background:open?C.input:C.grad, border:"none", borderRadius:7, padding:"6px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+          {open ? "Cancel" : "+ Add"}
+        </button>
+      </div>
+
+      {/* Today's sessions list */}
+      {todaySessions.map(s => (
+        <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderTop:`1px solid ${C.border}` }}>
+          <span style={{ fontSize:12, color:C.text }}>{s.icon} {s.name}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:11, color:C.muted }}>{s.duration}min · {s.intensity}/10</span>
+            <span style={{ fontSize:11, color:C.green, fontWeight:700 }}>{s.cals_burned}</span>
+            <button onClick={()=>onDelete(s.id)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:15 }}>×</button>
           </div>
+        </div>
+      ))}
+
+      {/* Add form */}
+      {open && (
+        <div style={{ marginTop:10, borderTop:`1px solid ${C.border}`, paddingTop:12 }}>
+          <label style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", display:"block", marginBottom:5 }}>Activity</label>
+          <select value={type} onChange={e=>setType(e.target.value)}
+            style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"10px", color:C.text, fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" }}>
+            {CARDIO_TYPES.map(t => <option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
+          </select>
+
           <div style={{ display:"flex", gap:10, marginBottom:10 }}>
             <div style={{ flex:1 }}>
-              <label style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:5, display:"block" }}>Duration (mins)</label>
-              <input type="number" placeholder="e.g. 25" value={cardioForm.duration} onChange={e=>setCardioForm(f=>({...f,duration:e.target.value}))}
-                style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" }} />
+              <label style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", display:"block", marginBottom:5 }}>Time (mins)</label>
+              <input type="number" placeholder="25" value={duration} onChange={e=>setDuration(e.target.value)}
+                style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"10px", color:C.text, fontSize:13, fontWeight:700, outline:"none", boxSizing:"border-box" }} />
             </div>
             <div style={{ flex:1 }}>
-              <label style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:5, display:"block" }}>Intensity ({cardioForm.intensity}/10)</label>
-              <input type="range" min="1" max="10" value={cardioForm.intensity} onChange={e=>setCardioForm(f=>({...f,intensity:parseInt(e.target.value)}))}
-                style={{ width:"100%", marginTop:10, accentColor:C.indigo }} />
+              <label style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", display:"block", marginBottom:5 }}>Effort ({intensity}/10)</label>
+              <input type="range" min="1" max="10" value={intensity} onChange={e=>setIntensity(parseInt(e.target.value))}
+                style={{ width:"100%", marginTop:9, accentColor:C.indigo }} />
             </div>
           </div>
-          {cardioForm.duration && (
-            <div style={{ background:"#1e2a1e", border:"1px solid #2a4a2a", borderRadius:7, padding:"8px 12px", marginBottom:10, fontSize:11, color:C.green }}>
-              Est. calories burned: <strong>{estimateCardioCals(cardioForm.type, parseInt(cardioForm.duration)||0, cardioForm.intensity)} kcal</strong>
-            </div>
-          )}
-          <input placeholder="Notes (optional)" value={cardioForm.notes} onChange={e=>setCardioForm(f=>({...f,notes:e.target.value}))}
-            style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"9px 10px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", marginBottom:10 }} />
-          <button onClick={addCardio} style={{ width:"100%", background:C.grad, border:"none", borderRadius:7, padding:"9px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>Log session</button>
-          {saved && <div style={{ textAlign:"center", color:C.green, fontSize:11, marginTop:6 }}>✓ Saved!</div>}
-          {todayCardio.length>0 && (
-            <div style={{ marginTop:12 }}>
-              <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Today's cardio</div>
-              {todayCardio.map((c,i)=>(
-                <div key={c.id||i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderTop:`1px solid ${C.border}` }}>
-                  <span style={{ fontSize:12, color:C.text }}>{c.icon} {c.name} · {c.duration}min · {c.intensity}/10</span>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ fontSize:12, fontWeight:700, color:C.green }}>{c.cals_burned} kcal</span>
-                    <button onClick={()=>onDeleteCardio(c.id||i)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:14 }}>×</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
 
-      {/* History — last 7 days */}
-      {activeSection==="history" && (
-        <Card>
-          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>7-day calorie history</div>
-          {Array.from({length:7},(_,i)=>{
-            const d = new Date(); d.setDate(d.getDate()-i);
-            const ds = d.toISOString().slice(0,10);
-            const dayIn     = (calories||[]).filter(c=>c.date?.slice(0,10)===ds).reduce((s,c)=>s+(c.cals||0),0);
-            const dayBurned = (cardioSessions||[]).filter(c=>c.date?.slice(0,10)===ds).reduce((s,c)=>s+(c.cals_burned||0),0);
-            const dayDef    = tdee + dayBurned - dayIn;
-            if (dayIn===0 && dayBurned===0) return null;
-            return (
-              <div key={ds} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
-                <span style={{ fontSize:11, color:C.text }}>{fmtDate(ds+"T12:00:00")}</span>
-                <div style={{ display:"flex", gap:12, fontSize:11 }}>
-                  <span style={{ color:C.amber }}>{dayIn} in</span>
-                  <span style={{ color:C.green }}>{dayBurned} burned</span>
-                  <span style={{ color:dayDef>=0?C.green:C.red, fontWeight:700 }}>{dayDef>=0?"-":"+"}{ Math.abs(dayDef)}</span>
-                </div>
-              </div>
-            );
-          }).filter(Boolean)}
-        </Card>
+          {duration && (
+            <div style={{ background:"#1a2a1a", border:"1px solid #2a4a2a", borderRadius:7, padding:"7px 12px", marginBottom:10, fontSize:11, color:C.green }}>
+              Est. burn: <strong>{estimateCardioCals(type, parseInt(duration)||0, intensity)} kcal</strong>
+            </div>
+          )}
+
+          <button onClick={add} style={{ width:"100%", background:C.grad, border:"none", borderRadius:7, padding:"10px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+            Log cardio session
+          </button>
+        </div>
       )}
     </div>
   );
 };
 
 // ─────────────────────────────────────────────
-// SESSION SUMMARY
+// STATS: Calorie variance chart (last 14 days)
+// ─────────────────────────────────────────────
+const CalorieVarianceChart = ({ dailyLog, calorieTarget }) => {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0,10);
+    const log = (dailyLog && dailyLog[ds]) || {};
+    const cals = log.calsTotal || 0;
+    days.push({ date: ds, label: `${d.getDate()}/${d.getMonth()+1}`, cals, variance: cals ? cals - calorieTarget : null });
+  }
+  const logged = days.filter(d => d.cals > 0);
+  const avgVar = logged.length ? Math.round(logged.reduce((s,d)=>s+d.variance,0)/logged.length) : 0;
+
+  return (
+    <div>
+      <SectionLabel>Calorie Variance (14 days)</SectionLabel>
+      <Card style={{ marginBottom:12 }}>
+        {logged.length === 0 ? (
+          <div style={{ textAlign:"center", color:C.dim, fontSize:12, padding:"16px 0" }}>
+            Log calories on the Home tab to see your trend here.
+          </div>
+        ) : (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", fontWeight:600 }}>Avg variance</div>
+                <div style={{ fontSize:18, fontWeight:800, color: avgVar > 0 ? C.red : C.green }}>{avgVar >= 0 ? "+" : ""}{avgVar} kcal</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", fontWeight:600 }}>Days logged</div>
+                <div style={{ fontSize:18, fontWeight:800, color:C.text }}>{logged.length}/14</div>
+              </div>
+            </div>
+            {/* Simple bar chart */}
+            <div style={{ display:"flex", alignItems:"center", gap:2, height:80, borderTop:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, position:"relative" }}>
+              <div style={{ position:"absolute", left:0, right:0, top:"50%", height:1, background:C.border }} />
+              {days.map((d,i) => {
+                if (d.variance === null) return <div key={i} style={{ flex:1 }} />;
+                const mag = Math.min(38, Math.abs(d.variance) / 30);
+                const over = d.variance > 0;
+                return (
+                  <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", position:"relative" }}>
+                    <div style={{ position:"absolute", top: over ? `calc(50% - ${mag}px)` : "50%", height:mag, width:"70%", background: over ? C.red : C.green, borderRadius:2 }} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:8, color:C.dim }}>
+              <span>{days[0].label}</span>
+              <span>Today</span>
+            </div>
+            <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}><div style={{ width:8, height:8, borderRadius:2, background:C.green }} /><span style={{ fontSize:9, color:C.muted }}>Under target</span></div>
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}><div style={{ width:8, height:8, borderRadius:2, background:C.red }} /><span style={{ fontSize:9, color:C.muted }}>Over target</span></div>
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+
 // ─────────────────────────────────────────────
 const SessionSummary = ({ logs, exercises, calories, cardioSessions, profile }) => {
   const todayStr = new Date().toISOString().slice(0,10);
@@ -3383,6 +3531,8 @@ export default function App() {
     if (data.favourites)      setFavourites(data.favourites);
     if (data.weights)         setBodyWeights(data.weights);
     if (data.photos)          setPhotos(data.photos);
+    if (data.dailyLog)        setDailyLog(data.dailyLog);
+    if (data.cardio)          setCardioSessions(data.cardio);
   };
 
   const handleSignIn = async () => {
@@ -3563,7 +3713,18 @@ export default function App() {
         )}
 
         {!detailId && activeTab === "dashboard" && (
-          <Dashboard exercises={exercises} logs={logs} plan={plan} onOpenExercise={id => openExercise(id, "Home")} favourites={favExList} streakData={streakData} calories={calories} cardioSessions={cardioSessions} profile={profile} />
+          <Dashboard
+            exercises={exercises} logs={logs} plan={plan}
+            onOpenExercise={id => openExercise(id, "Home")}
+            favourites={favExList} streakData={streakData}
+            calories={calories} cardioSessions={cardioSessions} profile={profile}
+            dailyLog={dailyLog}
+            calorieTarget={{ ...MY_PLAN.dailyTargets, ...planOverrides }.calories}
+            onUpdateDailyLog={(date, log) => { setDailyLog({ ...dailyLog, [date]:log }); if (user) saveDailyLog(user.id, date, log); }}
+            onAddCardio={async s => { const saved = user ? await saveCardioSession(user.id, s) : null; setCardioSessions([...cardioSessions, { ...s, id:saved?.id || s.id }]); }}
+            onDeleteCardio={id => { setCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id)); if (user) deleteCardioSession(id); }}
+            onViewCalorieHistory={() => setActiveTab("stats")}
+          />
         )}
 
         {!detailId && activeTab === "plan" && (
@@ -3713,7 +3874,7 @@ export default function App() {
           <div>
             <DailyTargetsCard
               dailyLog={dailyLog}
-              onUpdate={(date, log) => setDailyLog({ ...dailyLog, [date]:log })}
+              onUpdate={(date, log) => { setDailyLog({ ...dailyLog, [date]:log }); if (user) saveDailyLog(user.id, date, log); }}
               calories={calories}
               overrides={planOverrides}
             />
@@ -3779,15 +3940,10 @@ export default function App() {
             {/* Session summary */}
             <SessionSummary logs={logs} exercises={exercises} calories={calories} cardioSessions={cardioSessions} profile={profile} />
 
-            {/* Calorie tracker */}
-            <CalorieTracker
-              calories={calories}
-              cardioSessions={cardioSessions}
-              profile={profile}
-              onAddMeal={m => setCalories([...calories, m])}
-              onDeleteMeal={id => setCalories(calories.filter(c=>(c.id||calories.indexOf(c))!==id))}
-              onAddCardio={s => setCardioSessions([...cardioSessions, s])}
-              onDeleteCardio={id => setCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id))}
+            {/* Calorie variance chart */}
+            <CalorieVarianceChart
+              dailyLog={dailyLog}
+              calorieTarget={{ ...MY_PLAN.dailyTargets, ...planOverrides }.calories}
             />
 
             {/* Body weight */}
