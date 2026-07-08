@@ -214,6 +214,14 @@ const C = {
 const uid        = () => Math.random().toString(36).slice(2, 9);
 const avg        = ([a, b]) => (a + b) / 2;
 const fmtDate    = iso => { const d = new Date(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; };
+// Local date string YYYY-MM-DD (avoids UTC day-shift from toISOString)
+const localDateStr = (d = new Date()) => {
+  const dt = (d instanceof Date) ? d : new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const day = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 const daysSince  = iso  => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null;
 const todayName  = ()   => DAYS[(new Date().getDay() + 6) % 7];
 const filterTime = (entries, days) => days ? entries.filter(e => Date.now() - new Date(e.date) < days * 86400000) : entries;
@@ -329,7 +337,7 @@ async function saveProfile(userId, profile) {
 async function saveSession(userId, exId, entry) {
   const { data } = await supabase.from("sessions").insert({
     user_id: userId, exercise_id: exId,
-    logged_date: entry.date.slice(0,10),
+    logged_date: localDateStr(entry.date),
     weight_kg: entry.weight || null, sets: entry.sets || null,
     reps: entry.reps || null, notes: entry.notes || null,
   }).select().single();
@@ -358,7 +366,7 @@ async function savePlan(userId, plan) {
 
 async function saveBodyWeight(userId, entry) {
   const { data } = await supabase.from("body_weights").insert({
-    user_id: userId, weight_kg: entry.weight, logged_date: entry.date.slice(0,10),
+    user_id: userId, weight_kg: entry.weight, logged_date: localDateStr(entry.date),
   }).select().single();
   return data;
 }
@@ -369,7 +377,7 @@ async function deleteBodyWeight(id) {
 
 async function saveCheckin(userId, photo) {
   const { data } = await supabase.from("checkins").insert({
-    user_id: userId, note: photo.note, checkin_date: photo.date.slice(0,10),
+    user_id: userId, note: photo.note, checkin_date: localDateStr(photo.date),
   }).select().single();
   return data;
 }
@@ -395,7 +403,7 @@ async function saveDailyLog(userId, dateStr, log) {
 async function saveCardioSession(userId, s) {
   const { data, error } = await supabase.from("cardio_sessions").insert({
     user_id: userId,
-    logged_date: s.date.slice(0,10),
+    logged_date: localDateStr(s.date),
     cardio_type: s.type, name: s.name, icon: s.icon,
     duration: s.duration, intensity: s.intensity, cals_burned: s.cals_burned,
   }).select().single();
@@ -814,7 +822,7 @@ const ExerciseCard = ({ ex, latestEntry, logCount, scheduledDays, isFav, onTap, 
 // Exercise Detail
 // ─────────────────────────────────────────────
 const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbValue, onBack, onLog, onDeleteEntry, onRemove, onPlanChange, onFavToggle, profile }) => {
-  const todayStr = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const todayStr = () => localDateStr(); // YYYY-MM-DD
   const [form, setForm]         = useState({ weight:"", sets:"", reps:"", notes:"", date:todayStr() });
   const [dateMode, setDateMode] = useState("today"); // "today" | "custom"
   const [saved, setSaved]       = useState(false);
@@ -960,7 +968,7 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
           </div>
           {dateMode === "custom" && (
             <input type="date" value={form.date}
-              max={new Date().toISOString().slice(0,10)}
+              max={localDateStr()}
               onChange={e => setForm(f => ({ ...f, date:e.target.value }))}
               style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" }} />
           )}
@@ -1196,13 +1204,13 @@ const WeeklyTrafficLights = ({ logs, plan, exercises, calories, dailyLog, calori
   monday.setDate(now.getDate() - dayIdx);
   monday.setHours(0,0,0,0);
 
-  const todayStr = now.toISOString().slice(0,10);
+  const todayStr = localDateStr(now);
   const exIds = new Set(exercises.map(e => e.id));
 
   const days = DAYS.map((dayName, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const ds = d.toISOString().slice(0,10);
+    const ds = localDateStr(d);
     const isFuture = d > now && ds !== todayStr;
     const isToday  = ds === todayStr;
 
@@ -1212,7 +1220,7 @@ const WeeklyTrafficLights = ({ logs, plan, exercises, calories, dailyLog, calori
     // Did any session get logged on this date?
     let trained = false;
     for (const id of Object.keys(logs)) {
-      if ((logs[id] || []).some(e => e.date && e.date.slice(0,10) === ds)) { trained = true; break; }
+      if ((logs[id] || []).some(e => e.date && localDateStr(e.date) === ds)) { trained = true; break; }
     }
 
     // PLAN light
@@ -1286,6 +1294,7 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
   const today = todayName();
   const todayPlan = plan[today] || [];
   const exMap = Object.fromEntries(exercises.map(e => [e.id, e]));
+  const [showNever, setShowNever] = useState(false);
 
   const allSessions = exercises
     .flatMap(ex => (logs[ex.id]||[]).map(e => ({ ...e, ex })))
@@ -1411,27 +1420,47 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
         })}
       </>}
 
-      {/* Days since */}
+      {/* Days since — trained shown, never-trained collapsed */}
       <SectionLabel>Days since last session</SectionLabel>
       <Card>
-        {recency.map(({ ex, last, days }, i) => {
-          const dl  = daysLabel(days);
-          const latest = last;
-          const val = latest ? (ex.bw ? `${latest.reps} ${ex.unit}` : `${latest.weight}kg`) : null;
-          return (
-            <div key={ex.id} onClick={() => onOpenExercise(ex.id)}
-              style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i < recency.length - 1 ? `1px solid ${C.border}` : "none", cursor:"pointer" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:8, height:8, borderRadius:"50%", background:dl.color, flexShrink:0 }} />
-                <div>
-                  <div style={{ fontSize:12, fontWeight:600 }}>{ex.name}</div>
-                  {val && <div style={{ fontSize:11, color:C.muted }}>Last: {val}</div>}
+        {(() => {
+          const trained = recency.filter(r => r.days !== null);
+          const never   = recency.filter(r => r.days === null);
+          const rows = (list) => list.map(({ ex, last, days }, i) => {
+            const dl  = daysLabel(days);
+            const val = last ? (ex.bw ? `${last.reps} ${ex.unit}` : `${last.weight}kg`) : null;
+            return (
+              <div key={ex.id} onClick={() => onOpenExercise(ex.id)}
+                style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:8, height:8, borderRadius:"50%", background:dl.color, flexShrink:0 }} />
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:600 }}>{ex.name}</div>
+                    {val && <div style={{ fontSize:11, color:C.muted }}>Last: {val}</div>}
+                  </div>
                 </div>
+                <div style={{ fontSize:12, fontWeight:700, color:dl.color }}>{dl.text}</div>
               </div>
-              <div style={{ fontSize:12, fontWeight:700, color:dl.color }}>{dl.text}</div>
-            </div>
+            );
+          });
+          return (
+            <>
+              {trained.length === 0 && !showNever && (
+                <div style={{ textAlign:"center", color:C.dim, fontSize:12, padding:"12px 0" }}>
+                  No sessions logged yet — tap below to browse exercises.
+                </div>
+              )}
+              {rows(trained)}
+              {showNever && rows(never)}
+              {never.length > 0 && (
+                <div onClick={() => setShowNever(s => !s)}
+                  style={{ textAlign:"center", padding:"10px 0 2px", cursor:"pointer", color:C.indigo, fontSize:11, fontWeight:600 }}>
+                  {showNever ? "Hide never trained" : `Show never trained (${never.length})`}
+                </div>
+              )}
+            </>
           );
-        })}
+        })()}
       </Card>
 
       {/* Recent sessions */}
@@ -1814,7 +1843,7 @@ function estimateCardioCals(typeId, durationMins, intensity) {
 // CALORIE TRACKER
 // ─────────────────────────────────────────────
 const HomeCalorieTracker = ({ dailyLog, onUpdate, calorieTarget, onViewHistory }) => {
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
   const log = (dailyLog && dailyLog[todayStr]) || {};
   const cals = log.calsTotal || 0;
   const variance = cals - calorieTarget;
@@ -1879,6 +1908,15 @@ const HomeCalorieTracker = ({ dailyLog, onUpdate, calorieTarget, onViewHistory }
           </button>
         ))}
       </div>
+
+      {/* Creatine tick — moved from Plan+ */}
+      <div onClick={()=>onUpdate(todayStr, { ...log, creatine:!log.creatine })}
+        style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:log.creatine?"#1a2a1a":C.input, border:`1px solid ${log.creatine?C.green+"55":C.border}`, borderRadius:10, padding:"10px 14px", cursor:"pointer", marginTop:10 }}>
+        <span style={{ fontSize:12, color:log.creatine?C.text:C.muted }}>💊 Creatine (5g)</span>
+        <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${log.creatine?C.green:C.inputB}`, background:log.creatine?C.green:"transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          {log.creatine && <span style={{ color:"#fff", fontSize:12, fontWeight:800 }}>✓</span>}
+        </div>
+      </div>
     </div>
   );
 };
@@ -1892,8 +1930,8 @@ const HomeCardioTracker = ({ cardioSessions, onAdd, onDelete }) => {
   const [intensity, setIntensity] = useState(5);
   const [open, setOpen]         = useState(false);
 
-  const todayStr = new Date().toISOString().slice(0,10);
-  const todaySessions = (cardioSessions||[]).filter(c => c.date && c.date.slice(0,10)===todayStr);
+  const todayStr = localDateStr();
+  const todaySessions = (cardioSessions||[]).filter(c => c.date && localDateStr(c.date)===todayStr);
   const todayBurned   = todaySessions.reduce((s,c)=>s+(c.cals_burned||0),0);
 
   const add = () => {
@@ -1973,7 +2011,7 @@ const CalorieVarianceChart = ({ dailyLog, calorieTarget }) => {
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
-    const ds = d.toISOString().slice(0,10);
+    const ds = localDateStr(d);
     const log = (dailyLog && dailyLog[ds]) || {};
     const cals = log.calsTotal || 0;
     days.push({ date: ds, label: `${d.getDate()}/${d.getMonth()+1}`, cals, variance: cals ? cals - calorieTarget : null });
@@ -2033,7 +2071,7 @@ const CalorieVarianceChart = ({ dailyLog, calorieTarget }) => {
 
 // ─────────────────────────────────────────────
 const SessionSummary = ({ logs, exercises, calories, cardioSessions, profile }) => {
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
   const todayEx = exercises.filter(ex => (logs[ex.id]||[]).some(e=>e.date?.slice(0,10)===todayStr));
   const todaySessions = todayEx.map(ex => {
     const s = (logs[ex.id]||[]).filter(e=>e.date?.slice(0,10)===todayStr);
@@ -2295,8 +2333,8 @@ const MY_PLAN = {
 // Daily Targets tracker card
 const DailyTargetsCard = ({ dailyLog, onUpdate, calories, overrides }) => {
   const t = { ...MY_PLAN.dailyTargets, ...(overrides||{}) };
-  const todayStr = new Date().toISOString().slice(0,10);
-  const todayMeals = (calories||[]).filter(c => c.date && c.date.slice(0,10)===todayStr);
+  const todayStr = localDateStr();
+  const todayMeals = (calories||[]).filter(c => c.date && localDateStr(c.date)===todayStr);
   const log = (dailyLog && dailyLog[todayStr]) || { water:0, steps:0, creatine:false, quickCals:0 };
   const calsIn = todayMeals.reduce((s,c)=>s+(c.cals||0),0) + (log.quickCals||0);
   const calVariance = calsIn - t.calories;
@@ -2326,61 +2364,12 @@ const DailyTargetsCard = ({ dailyLog, onUpdate, calories, overrides }) => {
     <div>
       <SectionLabel>Daily Targets</SectionLabel>
       <Card style={{ marginBottom:12 }}>
-        <div style={{ display:"flex", justifyContent:"space-around", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-around", marginBottom:8 }}>
           <Ring value={calsIn} target={t.calories} color={C.amber}  label="kcal" />
-          <Ring value={log.steps||0} target={t.steps} color={C.green} label="steps" />
+          <Ring value={Math.round(calsIn * t.protein / (t.calories||1))} target={t.protein} color={C.indigo} label="protein" />
         </div>
-
-        {/* Quick-add calories */}
-        <div style={{ background:C.input, borderRadius:10, padding:"12px", marginBottom:12 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <span style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase" }}>Quick add calories</span>
-            <span style={{ fontSize:11, fontWeight:700, color: calVariance > 0 ? C.red : calVariance < -300 ? C.amber : C.green }}>
-              {calVariance >= 0 ? "+" : ""}{calVariance} vs plan
-            </span>
-          </div>
-          <div style={{ display:"flex", gap:6 }}>
-            {[100,200,500].map(n => (
-              <button key={n} onClick={()=>onUpdate(todayStr, { ...log, quickCals:(log.quickCals||0)+n })}
-                style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:7, padding:"9px 0", color:C.amber, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-                +{n}
-              </button>
-            ))}
-            <button onClick={()=>onUpdate(todayStr, { ...log, quickCals:0 })}
-              style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:7, padding:"9px 12px", color:C.dim, fontSize:12, fontWeight:600, cursor:"pointer" }}>
-              Reset
-            </button>
-          </div>
-          {(log.quickCals||0) > 0 && (
-            <div style={{ fontSize:10, color:C.dim, marginTop:6, textAlign:"center" }}>
-              {log.quickCals} kcal quick-added today
-            </div>
-          )}
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-          <div style={{ background:C.input, borderRadius:10, padding:"12px" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Water</div>
-            <div style={{ fontSize:18, fontWeight:800, color:"#3b82f6", marginBottom:8 }}>{log.water||0}<span style={{ fontSize:11, color:C.dim }}>/{t.water}L</span></div>
-            <div style={{ display:"flex", gap:5 }}>
-              <button onClick={()=>onUpdate(todayStr, { ...log, water:Math.max(0,+((log.water||0)-0.25).toFixed(2)) })}
-                style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"5px", color:C.muted, fontSize:14, cursor:"pointer" }}>-</button>
-              <button onClick={()=>onUpdate(todayStr, { ...log, water:+((log.water||0)+0.25).toFixed(2) })}
-                style={{ flex:1, background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"5px", color:"#3b82f6", fontSize:14, cursor:"pointer" }}>+</button>
-            </div>
-          </div>
-          <div style={{ background:C.input, borderRadius:10, padding:"12px" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:6 }}>Steps</div>
-            <input type="number" placeholder="0" value={log.steps||""} onChange={e=>onUpdate(todayStr, { ...log, steps:parseInt(e.target.value)||0 })}
-              style={{ width:"100%", background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:14, fontWeight:700, outline:"none", boxSizing:"border-box" }} />
-            <div style={{ fontSize:9, color:(log.steps||0)>=t.steps?C.green:C.dim, marginTop:4 }}>{(log.steps||0)>=t.steps?"Target hit":`Goal ${t.steps.toLocaleString()}`}</div>
-          </div>
-        </div>
-        <div onClick={()=>onUpdate(todayStr, { ...log, creatine:!log.creatine })}
-          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:log.creatine?"#1a2a1a":C.input, border:`1px solid ${log.creatine?C.green+"55":C.border}`, borderRadius:10, padding:"10px 14px", cursor:"pointer" }}>
-          <span style={{ fontSize:12, color:log.creatine?C.text:C.muted }}>Creatine ({t.creatine}g)</span>
-          <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${log.creatine?C.green:C.inputB}`, background:log.creatine?C.green:"transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            {log.creatine && <span style={{ color:"#fff", fontSize:12, fontWeight:800 }}>✓</span>}
-          </div>
+        <div style={{ fontSize:10, color:C.dim, textAlign:"center" }}>
+          Log calories, cardio and creatine on the Home tab.
         </div>
       </Card>
     </div>
@@ -2893,6 +2882,21 @@ const EXERCISE_MUSCLES = {
   legrise:    { primary:["abs","hip_flexors"],         secondary:["obliques"] },
   abcrunch:   { primary:["abs"],                      secondary:["obliques"] },
   cabletwist: { primary:["obliques"],                 secondary:["abs"] },
+  decline:    { primary:["chest"],                    secondary:["shoulders","triceps"] },
+  facepull:   { primary:["shoulders","traps"],         secondary:["lats"] },
+  straightarm:{ primary:["lats"],                     secondary:[] },
+  upright:    { primary:["shoulders","traps"],         secondary:[] },
+  arnold:     { primary:["shoulders"],                secondary:["triceps"] },
+  cabletricep:{ primary:["triceps"],                  secondary:[] },
+  goblet:     { primary:["quads","glutes"],            secondary:["hamstrings"] },
+  hipthrust:  { primary:["glutes"],                   secondary:["hamstrings"] },
+  boxsquat:   { primary:["quads","glutes"],            secondary:["hamstrings"] },
+  trapbar:    { primary:["quads","glutes","hamstrings"], secondary:["lower_back","traps"] },
+  seatedcalf: { primary:["calves"],                   secondary:[] },
+  stiffleg:   { primary:["hamstrings","glutes"],       secondary:["lower_back"] },
+  russian:    { primary:["obliques"],                 secondary:["abs"] },
+  deadbug:    { primary:["abs"],                       secondary:["lower_back"] },
+  sideplankleft:{ primary:["obliques"],               secondary:["abs","shoulders"] },
 };
 
 // All muscle groups with their display names
@@ -3211,7 +3215,7 @@ const BodyWeightTracker = ({ bodyWeights, onAdd, onDelete }) => {
           <button onClick={() => setMode("past")}  style={{ flex:1, padding:"6px 0", borderRadius:6, border:`1px solid ${mode==="past"?C.indigo:C.border}`, background:mode==="past"?C.indigo:C.input, color:mode==="past"?"#fff":C.muted, fontSize:10, fontWeight:600, cursor:"pointer" }}>Past date</button>
         </div>
         {mode === "past" && (
-          <input type="date" value={date} max={new Date().toISOString().slice(0,10)}
+          <input type="date" value={date} max={localDateStr()}
             onChange={e => setDate(e.target.value)}
             style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"8px 10px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", marginBottom:8 }} />
         )}
@@ -3356,7 +3360,7 @@ const ProgressPhotos = ({ photos, onAdd, onDelete }) => {
         </div>
 
         {/* Add form */}
-        <input type="date" value={date} max={new Date().toISOString().slice(0,10)}
+        <input type="date" value={date} max={localDateStr()}
           onChange={e => setDate(e.target.value)}
           style={{ width:"100%", background:C.input, border:`1px solid ${C.inputB}`, borderRadius:7, padding:"8px 10px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", marginBottom:8 }} />
         <div style={{ display:"flex", gap:8 }}>
@@ -3407,7 +3411,7 @@ const ExportData = ({ logs, exercises, bodyWeights, profile }) => {
     const blob = new Blob([rows.join("\n")], { type:"text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `strength-tracker-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `strength-tracker-${localDateStr()}.csv`;
     a.click();
     setExported(true);
     setTimeout(() => setExported(false), 2500);
@@ -3418,7 +3422,7 @@ const ExportData = ({ logs, exercises, bodyWeights, profile }) => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `strength-tracker-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `strength-tracker-backup-${localDateStr()}.json`;
     a.click();
   };
 
