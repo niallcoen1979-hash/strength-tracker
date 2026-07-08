@@ -493,7 +493,13 @@ const ExChart = ({ ex, entries, chartType }) => {
   const getValue = e => ex.bw ? e.reps : e.weight;
   const t6 = avg(ex.t6), t18 = avg(ex.t18);
   const data = entries.map(e => ({ label:fmtDate(e.date), value:getValue(e) }));
-  if (!data.length) return <div style={{ textAlign:"center", padding:"28px 0", color:C.dim, fontSize:13 }}>No sessions yet — log one below.</div>;
+  if (!data.length) return (
+    <div style={{ textAlign:"center", padding:"24px 12px", color:C.dim }}>
+      <div style={{ fontSize:26, marginBottom:6 }}>📊</div>
+      <div style={{ fontSize:13, fontWeight:600, color:C.muted, marginBottom:3 }}>No sessions logged yet</div>
+      <div style={{ fontSize:11, color:C.dim }}>Log your first set below to start tracking progress toward your {avg(ex.t6)}{unit} target.</div>
+    </div>
+  );
   const vals = data.map(d => d.value).filter(Boolean);
   const minV = Math.max(0, Math.min(...vals) - 10), maxV = Math.max(...vals, t18) + 10;
   const cm = { data, margin:{ top:6, right:20, left:-14, bottom:0 } };
@@ -1271,17 +1277,24 @@ const WeeklyTrafficLights = ({ logs, plan, exercises, calories, dailyLog, calori
   return (
     <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
       <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:12 }}>This week</div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
-        {days.map((d,i) => (
-          <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7,
-            background: d.isToday ? C.input : "transparent", borderRadius:8, padding:"8px 2px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color: d.isToday ? C.text : C.muted }}>{d.short}</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:5, alignItems:"center", opacity: d.isFuture ? 0.35 : 1 }}>
-              {dot(d.planLight)}
-              {dot(d.calLight)}
+      <div style={{ display:"flex", gap:6 }}>
+        {/* Row icons */}
+        <div style={{ display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:5, paddingBottom:8 }}>
+          <div style={{ height:15 }} />
+          <div style={{ height:14, display:"flex", alignItems:"center", fontSize:12 }} title="Training">🏋️</div>
+          <div style={{ height:14, display:"flex", alignItems:"center", fontSize:12 }} title="Calories">🍎</div>
+        </div>
+        {/* Day columns */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, flex:1 }}>
+          {days.map((d,i) => (
+            <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5,
+              background: d.isToday ? C.input : "transparent", borderRadius:8, padding:"0 2px 8px" }}>
+              <div style={{ fontSize:10, fontWeight:700, color: d.isToday ? C.text : C.muted, height:15, display:"flex", alignItems:"center" }}>{d.short}</div>
+              <div style={{ opacity: d.isFuture ? 0.35 : 1, height:14, display:"flex", alignItems:"center" }}>{dot(d.planLight)}</div>
+              <div style={{ opacity: d.isFuture ? 0.35 : 1, height:14, display:"flex", alignItems:"center" }}>{dot(d.calLight)}</div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       {/* Legend */}
       <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:12, flexWrap:"wrap" }}>
@@ -1299,8 +1312,8 @@ const WeeklyTrafficLights = ({ logs, plan, exercises, calories, dailyLog, calori
         </div>
       </div>
       <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:8 }}>
-        <span style={{ fontSize:9, color:C.dim }}>● Top row = Training</span>
-        <span style={{ fontSize:9, color:C.dim }}>● Bottom row = Calories</span>
+        <span style={{ fontSize:9, color:C.dim }}>🏋️ Training</span>
+        <span style={{ fontSize:9, color:C.dim }}>🍎 Calories</span>
       </div>
     </div>
   );
@@ -1335,6 +1348,23 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
 
   return (
     <div>
+      {/* First-run onboarding banner */}
+      {totalSessions === 0 && (
+        <div style={{ background:"linear-gradient(135deg,#1a2a3a,#131a2a)", border:`1px solid ${C.indigo}66`, borderRadius:12, padding:16, marginBottom:14 }}>
+          <div style={{ fontSize:15, fontWeight:800, color:C.text, marginBottom:6 }}>👋 Welcome to your tracker</div>
+          <div style={{ fontSize:12, color:C.muted, lineHeight:1.6, marginBottom:12 }}>
+            Here is how to get going:<br/>
+            1️⃣ Check your programme in the 🎯 Plan+ tab<br/>
+            2️⃣ Open an exercise from 💪 Log and record your first set<br/>
+            3️⃣ Track calories and creatine right here on Home
+          </div>
+          <button onClick={() => onOpenExercise && exercises[0] && onOpenExercise(exercises[0].id)}
+            style={{ background:C.grad, border:"none", borderRadius:8, padding:"10px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>
+            Log my first session →
+          </button>
+        </div>
+      )}
+
       {/* Stat tiles */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
         {[
@@ -2024,6 +2054,7 @@ const HomeCardioTracker = ({ cardioSessions, onAdd, onDelete }) => {
 // STATS: Calorie variance chart (last 14 days)
 // ─────────────────────────────────────────────
 const CalorieVarianceChart = ({ dailyLog, calorieTarget, onEditDay }) => {
+  const [showEdit, setShowEdit] = useState(false);
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
@@ -2081,11 +2112,15 @@ const CalorieVarianceChart = ({ dailyLog, calorieTarget, onEditDay }) => {
         )}
       </Card>
 
-      {/* Editable daily history */}
+      {/* Editable daily history — collapsed by default */}
       <Card style={{ marginBottom:12 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>Edit past days</div>
-        <div style={{ fontSize:10, color:C.dim, marginBottom:10 }}>Adjust a day's calorie total to correct or backfill.</div>
-        {[...days].reverse().map(d => (
+        <div onClick={() => setShowEdit(s => !s)}
+          style={{ display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em" }}>Edit past days</div>
+          <span style={{ color:C.indigo, fontSize:11, fontWeight:600 }}>{showEdit ? "Hide" : "Show"}</span>
+        </div>
+        {showEdit && <div style={{ fontSize:10, color:C.dim, margin:"8px 0 10px" }}>Adjust a day's calorie total to correct or backfill.</div>}
+        {showEdit && [...days].reverse().map(d => (
           <div key={d.date} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
             <span style={{ fontSize:12, color:C.text }}>{fmtDate(d.date + "T12:00:00")}</span>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -2958,6 +2993,41 @@ function calcMuscleVolume(logs, exercises) {
   return volume;
 }
 
+// Calculate strength vs plan — how close each muscle's lifts are to the 6-month benchmark
+function calcMuscleStrength(logs, exercises) {
+  const scores = {};        // muscle -> array of pct-to-6mo
+  ALL_MUSCLES.forEach(m => scores[m] = []);
+  exercises.forEach(ex => {
+    const muscles = EXERCISE_MUSCLES[ex.id];
+    if (!muscles) return;
+    const exLogs = logs[ex.id] || [];
+    if (!exLogs.length) return;
+    // best recent value
+    const best = exLogs.reduce((mx,e) => { const v = ex.bw ? (e.reps||0) : (e.weight||0); return v>mx?v:mx; }, 0);
+    if (!best) return;
+    // 6-month target midpoint
+    const t6mid = ex.t6 ? (ex.t6[0]+ex.t6[1])/2 : null;
+    if (!t6mid) return;
+    const pct = Math.min(120, (best / t6mid) * 100);
+    muscles.primary.forEach(m => { if (scores[m]) scores[m].push(pct); });
+    muscles.secondary.forEach(m => { if (scores[m]) scores[m].push(pct*0.6); });
+  });
+  // Average each muscle's scores; null if no data
+  const out = {};
+  ALL_MUSCLES.forEach(m => {
+    out[m] = scores[m].length ? Math.round(scores[m].reduce((a,b)=>a+b,0)/scores[m].length) : null;
+  });
+  return out;
+}
+
+// Strength status → traffic light
+function strengthStatus(pct) {
+  if (pct === null) return "none";
+  if (pct >= 90) return "green";
+  if (pct >= 50) return "amber";
+  return "red";
+}
+
 // Traffic light status for a muscle
 function muscleStatus(volume) {
   if (volume >= 4) return "green";
@@ -2969,16 +3039,21 @@ function muscleStatus(volume) {
 function muscleColor(status, opacity = 1) {
   if (status === "green") return `rgba(34,197,94,${opacity})`;
   if (status === "amber") return `rgba(245,158,11,${opacity})`;
+  if (status === "red")   return `rgba(239,68,68,${opacity})`;
   return `rgba(45,45,74,${opacity})`;
 }
 
 // ─────────────────────────────────────────────
 // SVG Body Map Component
 // ─────────────────────────────────────────────
-const BodyMap = ({ muscleData, highlightPrimary = [], highlightSecondary = [], view = "front", onClick }) => {
+const BodyMap = ({ muscleData, highlightPrimary = [], highlightSecondary = [], view = "front", onClick, statusFn }) => {
   const getColor = (muscle) => {
     if (highlightPrimary.includes(muscle)) return "#6366f1";
     if (highlightSecondary.includes(muscle)) return "#a855f7";
+    if (statusFn) {
+      const st = statusFn(muscle);
+      return muscleColor(st, st === "none" ? 0.25 : 0.85);
+    }
     const vol = muscleData?.[muscle] || 0;
     return muscleColor(muscleStatus(vol), vol > 0 ? 0.85 : 0.25);
   };
@@ -3078,10 +3153,14 @@ const BodyMap = ({ muscleData, highlightPrimary = [], highlightSecondary = [], v
 // ─────────────────────────────────────────────
 const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
   const [view, setView] = useState("front");
+  const [mode, setMode] = useState("week"); // "week" (volume) | "plan" (strength)
   const [hoveredMuscle, setHoveredMuscle] = useState(null);
 
   // For dashboard: show weekly volume. For exercise: show what it works
   const muscleData = calcMuscleVolume(logs, exercises);
+  const strengthData = calcMuscleStrength(logs, exercises);
+  const usingStrength = !highlightEx && mode === "plan";
+  const strengthFn = (m) => strengthStatus(strengthData[m]);
   const primary   = highlightEx ? (EXERCISE_MUSCLES[highlightEx.id]?.primary   || []) : [];
   const secondary = highlightEx ? (EXERCISE_MUSCLES[highlightEx.id]?.secondary || []) : [];
 
@@ -3097,7 +3176,7 @@ const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
         <div style={{ fontSize:12, fontWeight:700, color:C.text }}>
-          {highlightEx ? `${highlightEx.name}` : "Weekly muscle coverage"}
+          {highlightEx ? `${highlightEx.name}` : (usingStrength ? "Strength vs plan" : "Muscle coverage")}
         </div>
         <div style={{ display:"flex", gap:5 }}>
           {["front","back"].map(v => (
@@ -3109,13 +3188,41 @@ const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
         </div>
       </div>
 
-      {/* Weekly stats row — only on dashboard */}
+      {/* Mode toggle — only on dashboard */}
       {!highlightEx && (
+        <div style={{ display:"flex", gap:5, marginBottom:12 }}>
+          {[["week","This week"],["plan","vs Plan"]].map(([id,label]) => (
+            <button key={id} onClick={() => setMode(id)}
+              style={{ flex:1, padding:"6px 0", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:mode===id?C.indigo:C.input, color:mode===id?"#fff":C.muted }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Weekly stats row — only on dashboard, week mode */}
+      {!highlightEx && !usingStrength && (
         <div style={{ display:"flex", gap:6, marginBottom:12 }}>
           {[
             { label:"Worked", count:worked,  color:C.green },
             { label:"Partial", count:partial, color:C.amber },
             { label:"Resting", count:resting, color:C.dim  },
+          ].map(s => (
+            <div key={s.label} style={{ flex:1, background:C.input, borderRadius:7, padding:"6px 8px", textAlign:"center" }}>
+              <div style={{ fontSize:16, fontWeight:800, color:s.color }}>{s.count}</div>
+              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", fontWeight:600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Strength stats row — plan mode */}
+      {usingStrength && (
+        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+          {[
+            { label:"At target", count:ALL_MUSCLES.filter(m=>strengthData[m]!==null&&strengthData[m]>=90).length, color:C.green },
+            { label:"Building",  count:ALL_MUSCLES.filter(m=>strengthData[m]!==null&&strengthData[m]>=50&&strengthData[m]<90).length, color:C.amber },
+            { label:"Behind",    count:ALL_MUSCLES.filter(m=>strengthData[m]!==null&&strengthData[m]<50).length, color:C.red },
           ].map(s => (
             <div key={s.label} style={{ flex:1, background:C.input, borderRadius:7, padding:"6px 8px", textAlign:"center" }}>
               <div style={{ fontSize:16, fontWeight:800, color:s.color }}>{s.count}</div>
@@ -3150,6 +3257,7 @@ const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
           highlightPrimary={primary}
           highlightSecondary={secondary}
           view={view}
+          statusFn={usingStrength ? strengthFn : null}
           onClick={m => setHoveredMuscle(hoveredMuscle === m ? null : m)}
         />
       </div>
@@ -3157,11 +3265,15 @@ const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
       {/* Legend — only on dashboard */}
       {!highlightEx && (
         <div style={{ display:"flex", gap:12, marginTop:8, justifyContent:"center" }}>
-          {[
+          {(usingStrength ? [
+            { color:C.green, label:"At target" },
+            { color:C.amber, label:"Building" },
+            { color:C.red,   label:"Behind" },
+          ] : [
             { color:C.green, label:"Well trained" },
             { color:C.amber, label:"Some work" },
             { color:"rgba(45,45,74,0.5)", label:"Needs attention" },
-          ].map(l => (
+          ]).map(l => (
             <div key={l.label} style={{ display:"flex", alignItems:"center", gap:4, fontSize:9, color:C.muted }}>
               <div style={{ width:8, height:8, borderRadius:2, background:l.color }} />
               {l.label}
@@ -3175,9 +3287,14 @@ const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
         <div style={{ marginTop:10, background:C.input, borderRadius:7, padding:"8px 12px", fontSize:11 }}>
           <span style={{ fontWeight:700, color:C.text }}>{muscleName(hoveredMuscle)}</span>
           <span style={{ color:C.muted, marginLeft:6 }}>
-            {muscleData[hoveredMuscle] >= 4 ? "✅ Well trained this week" :
-             muscleData[hoveredMuscle] >= 1 ? "🟡 Some work this week" :
-             "🔴 Not trained this week"}
+            {usingStrength
+              ? (strengthData[hoveredMuscle] === null ? "No data yet"
+                 : strengthData[hoveredMuscle] >= 90 ? `✅ At target (${strengthData[hoveredMuscle]}% of 6mo)`
+                 : strengthData[hoveredMuscle] >= 50 ? `🟡 Building (${strengthData[hoveredMuscle]}% of 6mo)`
+                 : `🔴 Behind (${strengthData[hoveredMuscle]}% of 6mo)`)
+              : (muscleData[hoveredMuscle] >= 4 ? "✅ Well trained this week" :
+                 muscleData[hoveredMuscle] >= 1 ? "🟡 Some work this week" :
+                 "🔴 Not trained this week")}
           </span>
         </div>
       )}
@@ -3193,6 +3310,7 @@ const BodyWeightTracker = ({ bodyWeights, onAdd, onDelete }) => {
   const [val, setVal]   = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [mode, setMode] = useState("today");
+  const [showHistory, setShowHistory] = useState(false);
 
   const sorted = [...(bodyWeights || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
   const latest = sorted.length ? sorted[sorted.length - 1] : null;
@@ -3258,11 +3376,15 @@ const BodyWeightTracker = ({ bodyWeights, onAdd, onDelete }) => {
           <button onClick={add} style={{ background:C.grad, border:"none", borderRadius:7, padding:"9px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>Log</button>
         </div>
 
-        {/* History */}
+        {/* History — collapsed by default */}
         {sorted.length > 0 && (
           <div style={{ marginTop:12 }}>
-            {[...sorted].reverse().slice(0, 8).map((e, i) => (
-              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:i < Math.min(sorted.length,8)-1?`1px solid ${C.border}`:"none" }}>
+            <div onClick={() => setShowHistory(s => !s)}
+              style={{ textAlign:"center", padding:"6px 0", cursor:"pointer", color:C.indigo, fontSize:11, fontWeight:600 }}>
+              {showHistory ? "Hide history" : `Show history (${sorted.length})`}
+            </div>
+            {showHistory && [...sorted].reverse().slice(0, 20).map((e, i) => (
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderTop:`1px solid ${C.border}` }}>
                 <div>
                   <span style={{ fontSize:13, fontWeight:700 }}>{e.weight}kg</span>
                   <span style={{ fontSize:11, color:C.muted, marginLeft:8 }}>{fmtDate(e.date)}</span>
@@ -3273,6 +3395,74 @@ const BodyWeightTracker = ({ bodyWeights, onAdd, onDelete }) => {
           </div>
         )}
       </Card>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// FEATURE: Weekly Summary card (highlights Sundays)
+// ─────────────────────────────────────────────
+const WeeklySummaryCard = ({ logs, plan, exercises, dailyLog, calorieTarget }) => {
+  const now = new Date();
+  const isSunday = now.getDay() === 0;
+  // Monday of current week
+  const dayIdx = (now.getDay() + 6) % 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - dayIdx); monday.setHours(0,0,0,0);
+
+  // Planned training days this week
+  const plannedDays = DAYS.filter(d => (plan[d] || []).length > 0).length;
+
+  // Sessions done this week (unique days with any log)
+  const trainedDates = new Set();
+  Object.keys(logs).forEach(id => (logs[id]||[]).forEach(e => {
+    const dt = new Date(e.date);
+    if (dt >= monday) trainedDates.add(localDateStr(dt));
+  }));
+  const sessionsDone = trainedDates.size;
+
+  // Volume this week (kg lifted)
+  let volume = 0;
+  Object.keys(logs).forEach(id => {
+    const ex = exercises.find(e => e.id === id);
+    if (!ex || ex.bw) return;
+    (logs[id]||[]).forEach(e => { if (new Date(e.date) >= monday) volume += (e.weight||0)*(e.reps||1)*(e.sets||1); });
+  });
+
+  // Calorie adherence — days within 15% of target this week
+  let calDaysOnTarget = 0, calDaysLogged = 0;
+  for (let i = 0; i <= dayIdx; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const log = dailyLog[localDateStr(d)];
+    if (log && log.calsTotal > 0) {
+      calDaysLogged++;
+      if (Math.abs(log.calsTotal - calorieTarget)/calorieTarget <= 0.15) calDaysOnTarget++;
+    }
+  }
+
+  return (
+    <div>
+      <SectionLabel>Weekly Summary{isSunday ? " ⭐" : ""}</SectionLabel>
+      <div style={{ background: isSunday ? "linear-gradient(135deg,#1a2a3a,#131a2a)" : C.card, border:`1px solid ${isSunday ? C.indigo+"66" : C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+        {isSunday && <div style={{ fontSize:11, color:C.indigo, fontWeight:700, marginBottom:10 }}>🎉 Your week in review</div>}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <div style={{ background:C.input, borderRadius:8, padding:"10px" }}>
+            <div style={{ fontSize:9, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:3 }}>Sessions</div>
+            <div style={{ fontSize:18, fontWeight:800, color:C.green }}>{sessionsDone}<span style={{ fontSize:11, color:C.dim }}>/{plannedDays || "–"}</span></div>
+          </div>
+          <div style={{ background:C.input, borderRadius:8, padding:"10px" }}>
+            <div style={{ fontSize:9, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:3 }}>Volume</div>
+            <div style={{ fontSize:18, fontWeight:800, color:C.amber }}>{volume >= 1000 ? `${(volume/1000).toFixed(1)}t` : `${Math.round(volume)}kg`}</div>
+          </div>
+          <div style={{ background:C.input, borderRadius:8, padding:"10px" }}>
+            <div style={{ fontSize:9, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:3 }}>Calories on target</div>
+            <div style={{ fontSize:18, fontWeight:800, color:C.indigo }}>{calDaysOnTarget}<span style={{ fontSize:11, color:C.dim }}>/{calDaysLogged || "–"} days</span></div>
+          </div>
+          <div style={{ background:C.input, borderRadius:8, padding:"10px" }}>
+            <div style={{ fontSize:9, color:C.muted, fontWeight:600, textTransform:"uppercase", marginBottom:3 }}>Plan adherence</div>
+            <div style={{ fontSize:18, fontWeight:800, color:C.purple }}>{plannedDays ? Math.round((sessionsDone/plannedDays)*100) : 0}%</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -3968,6 +4158,13 @@ export default function App() {
 
         {!detailId && activeTab === "stats" && (
           <div>
+            {/* Weekly summary */}
+            <WeeklySummaryCard
+              logs={logs} plan={plan} exercises={exercises}
+              dailyLog={dailyLog}
+              calorieTarget={{ ...MY_PLAN.dailyTargets, ...planOverrides }.calories}
+            />
+
             {/* Streak summary */}
             <SectionLabel>Training Streaks</SectionLabel>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6, marginBottom:10 }}>
@@ -3988,6 +4185,13 @@ export default function App() {
                 ⚠️ <strong>Recovery tip:</strong> {streakData.muscleGroupWarnings.join(", ")} trained 3+ days in a row — consider a rest day for these muscle groups.
               </div>
             )}
+
+            {/* Body weight — moved above Personal Records */}
+            <BodyWeightTracker
+              bodyWeights={bodyWeights}
+              onAdd={async w => { const saved = await saveBodyWeight(user.id, w); setBodyWeights(prev => [...prev, { ...w, id:saved?.id }]); }}
+              onDelete={async id => { await deleteBodyWeight(id); setBodyWeights(prev => prev.filter(w => w.id !== id)); }}
+            />
 
             {/* Personal Records */}
             <SectionLabel>Personal Records</SectionLabel>
@@ -4023,13 +4227,6 @@ export default function App() {
                 setDailyLog({ ...dailyLog, [date]:updated });
                 if (user) saveDailyLog(user.id, date, updated);
               }}
-            />
-
-            {/* Body weight */}
-            <BodyWeightTracker
-              bodyWeights={bodyWeights}
-              onAdd={async w => { const saved = await saveBodyWeight(user.id, w); setBodyWeights(prev => [...prev, { ...w, id:saved?.id }]); }}
-              onDelete={async id => { await deleteBodyWeight(id); setBodyWeights(prev => prev.filter(w => w.id !== id)); }}
             />
 
             {/* Rest timer */}
