@@ -951,7 +951,15 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
 
       {/* Log form */}
       <Card style={{ marginBottom:14 }}>
-        <div style={{ fontSize:12, fontWeight:700, marginBottom:12, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em" }}>Log a session</div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em" }}>Log a session</div>
+          {latest && (
+            <button onClick={() => setForm(f => ({ ...f, weight: ex.bw ? "" : String(latest.weight ?? ""), sets: String(latest.sets ?? ""), reps: String(latest.reps ?? "") }))}
+              style={{ background:C.indigo+"22", border:`1px solid ${C.indigo}55`, borderRadius:7, padding:"5px 11px", color:C.indigo, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+              ↻ Repeat last
+            </button>
+          )}
+        </div>
 
         {/* Date selector */}
         <div style={{ marginBottom:12 }}>
@@ -1012,9 +1020,17 @@ const ExerciseDetail = ({ ex, entries, logs, exercises, plan, isFav, isPB, pbVal
                   <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{fmtDate(entry.date)}</div>
                   {entry.notes && <div style={{ fontSize:11, color:C.purple, marginTop:2 }}>"{entry.notes}"</div>}
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                   <Badge label={p >= 80 ? "🏆 Peak" : p >= 40 ? "On track" : "Building"} color={p >= 80 ? "#14401e" : p >= 40 ? "#22203a" : "#2a2215"} textColor={p >= 80 ? C.green : p >= 40 ? C.purple : C.amber} />
-                  <button onClick={() => { const idx = entries.findIndex(e => e.date === entry.date && e.weight === entry.weight && e.reps === entry.reps); if (idx !== -1) onDeleteEntry(idx); }} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:16, lineHeight:1 }}>×</button>
+                  <button onClick={() => {
+                    // Load entry into form for editing, then remove the old one
+                    setForm({ weight: ex.bw ? "" : String(entry.weight ?? ""), sets: String(entry.sets ?? ""), reps: String(entry.reps ?? ""), notes: entry.notes || "", date: localDateStr(entry.date) });
+                    setDateMode("custom");
+                    const idx = entries.findIndex(e => e.date === entry.date && e.weight === entry.weight && e.reps === entry.reps);
+                    if (idx !== -1) onDeleteEntry(idx);
+                    if (typeof window !== "undefined") window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                  }} style={{ background:"none", border:"none", color:C.indigo, cursor:"pointer", fontSize:13, lineHeight:1 }} title="Edit">✎</button>
+                  <button onClick={() => { const idx = entries.findIndex(e => e.date === entry.date && e.weight === entry.weight && e.reps === entry.reps); if (idx !== -1) onDeleteEntry(idx); }} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:16, lineHeight:1 }} title="Delete">×</button>
                 </div>
               </div>
             );
@@ -2007,7 +2023,7 @@ const HomeCardioTracker = ({ cardioSessions, onAdd, onDelete }) => {
 // ─────────────────────────────────────────────
 // STATS: Calorie variance chart (last 14 days)
 // ─────────────────────────────────────────────
-const CalorieVarianceChart = ({ dailyLog, calorieTarget }) => {
+const CalorieVarianceChart = ({ dailyLog, calorieTarget, onEditDay }) => {
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
@@ -2063,6 +2079,23 @@ const CalorieVarianceChart = ({ dailyLog, calorieTarget }) => {
             </div>
           </>
         )}
+      </Card>
+
+      {/* Editable daily history */}
+      <Card style={{ marginBottom:12 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>Edit past days</div>
+        <div style={{ fontSize:10, color:C.dim, marginBottom:10 }}>Adjust a day's calorie total to correct or backfill.</div>
+        {[...days].reverse().map(d => (
+          <div key={d.date} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
+            <span style={{ fontSize:12, color:C.text }}>{fmtDate(d.date + "T12:00:00")}</span>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <input type="number" value={d.cals || ""} placeholder="0"
+                onChange={e => onEditDay(d.date, parseInt(e.target.value)||0)}
+                style={{ width:80, background:C.input, border:`1px solid ${C.inputB}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:13, fontWeight:700, outline:"none", textAlign:"right" }} />
+              <span style={{ fontSize:10, color:C.dim, width:36 }}>kcal</span>
+            </div>
+          </div>
+        ))}
       </Card>
     </div>
   );
@@ -3493,6 +3526,13 @@ export default function App() {
   const [activeTab,   setActiveTab]   = useState("dashboard");
   const [detailId,    setDetailId]    = useState(null);
   const [navHistory,  setNavHistory]  = useState([]);
+  const [undoAction,  setUndoAction]  = useState(null); // { message, restore }
+
+  useEffect(() => {
+    if (!undoAction) return;
+    const timer = setTimeout(() => setUndoAction(null), 5000);
+    return () => clearTimeout(timer);
+  }, [undoAction]);
   const [showAdd,     setShowAdd]     = useState(false);
   const [groupFilter, setGroupFilter] = useState("All");
   const [exView,      setExView]      = useState("charts"); // "list" | "charts"
@@ -3609,6 +3649,14 @@ export default function App() {
     const entry = logs[exId]?.[idx];
     if (entry?.id) await deleteSession(entry.id);
     setLogs(prev => ({ ...prev, [exId]:(prev[exId]||[]).filter((_,i) => i !== idx) }));
+    // Offer undo — re-save the entry if tapped
+    setUndoAction({
+      message: "Session deleted",
+      restore: async () => {
+        const saved = user ? await saveSession(user.id, exId, entry) : null;
+        setLogs(prev => ({ ...prev, [exId]:[...(prev[exId]||[]), { ...entry, id: saved?.id || entry.id }] }));
+      },
+    });
   };
 
   const removeExercise = async id => {
@@ -3739,7 +3787,15 @@ export default function App() {
             calorieTarget={{ ...MY_PLAN.dailyTargets, ...planOverrides }.calories}
             onUpdateDailyLog={(date, log) => { setDailyLog({ ...dailyLog, [date]:log }); if (user) saveDailyLog(user.id, date, log); }}
             onAddCardio={async s => { const saved = user ? await saveCardioSession(user.id, s) : null; setCardioSessions([...cardioSessions, { ...s, id:saved?.id || s.id }]); }}
-            onDeleteCardio={id => { setCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id)); if (user) deleteCardioSession(id); }}
+            onDeleteCardio={id => {
+              const removed = cardioSessions.find(c=>(c.id||cardioSessions.indexOf(c))===id);
+              setCardioSessions(cardioSessions.filter(c=>(c.id||cardioSessions.indexOf(c))!==id));
+              if (user) deleteCardioSession(id);
+              if (removed) setUndoAction({ message:"Cardio deleted", restore: async () => {
+                const saved = user ? await saveCardioSession(user.id, removed) : null;
+                setCardioSessions(prev => [...prev, { ...removed, id: saved?.id || removed.id }]);
+              }});
+            }}
             onViewCalorieHistory={() => setActiveTab("stats")}
           />
         )}
@@ -3961,6 +4017,12 @@ export default function App() {
             <CalorieVarianceChart
               dailyLog={dailyLog}
               calorieTarget={{ ...MY_PLAN.dailyTargets, ...planOverrides }.calories}
+              onEditDay={(date, total) => {
+                const existing = dailyLog[date] || {};
+                const updated = { ...existing, calsTotal: total };
+                setDailyLog({ ...dailyLog, [date]:updated });
+                if (user) saveDailyLog(user.id, date, updated);
+              }}
             />
 
             {/* Body weight */}
@@ -4041,6 +4103,19 @@ export default function App() {
             );
           })}
         </nav>
+      )}
+
+      {/* Undo toast */}
+      {undoAction && (
+        <div style={{ position:"fixed", left:"50%", bottom:88, transform:"translateX(-50%)", zIndex:400,
+          background:"#1a1a2e", border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 16px",
+          display:"flex", alignItems:"center", gap:16, boxShadow:"0 8px 24px rgba(0,0,0,0.4)", minWidth:240 }}>
+          <span style={{ fontSize:13, color:C.text }}>{undoAction.message}</span>
+          <button onClick={async () => { await undoAction.restore(); setUndoAction(null); }}
+            style={{ background:C.indigo, border:"none", borderRadius:7, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            Undo
+          </button>
+        </div>
       )}
 
       {infoEx && <ExerciseInfoModal ex={infoEx} onClose={() => setInfoEx(null)} />}
