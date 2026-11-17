@@ -172,12 +172,43 @@ const SEED_EXERCISES = [
   { id:"sideplankleft", name:"Side Plank (Left)",       unit:"seconds",   bw:true,  group:"Core",      baseline:[15,25],   t6:[35,50],   t18:[60,90],
     desc:"Lie on side, lift hips off floor supported by forearm and feet. Keep body in straight line. Targets obliques.",
     video:"https://www.youtube.com/watch?v=_6vjo5yFo1U" },
+  // ── Kettlebell ──
+  { id:"kbswing",     name:"Kettlebell Swing",          unit:"kg",        bw:false, group:"Kettlebell", baseline:[12,16],   t6:[20,24],   t18:[28,32],
+    desc:"Hinge at hips, hike the bell back, then snap hips forward to float it to chest height. Power from the hips, not the arms. Hip-friendly posterior-chain builder.",
+    video:"https://www.youtube.com/watch?v=YSxHifyI6s8" },
+  { id:"kbgoblet",    name:"KB Goblet Squat",           unit:"kg",        bw:false, group:"Kettlebell", baseline:[12,16],   t6:[20,24],   t18:[28,36],
+    desc:"Hold the bell at your chest, squat to comfortable depth keeping chest tall. Controls depth — hip-friendly.",
+    video:"https://www.youtube.com/watch?v=goL2cR5aMc4" },
+  { id:"kbpress",     name:"KB Shoulder Press",         unit:"kg each",   bw:false, group:"Kettlebell", baseline:[8,12],    t6:[14,18],   t18:[20,24],
+    desc:"Clean the bell to the rack, then press overhead keeping the wrist stacked. One or two bells.",
+    video:"https://www.youtube.com/watch?v=3b6cT5Pbcp4" },
+  { id:"kbrow",       name:"KB Bent-Over Row",          unit:"kg each",   bw:false, group:"Kettlebell", baseline:[12,16],   t6:[20,24],   t18:[28,36],
+    desc:"Hinge forward with a flat back, row the bell to the hip leading with the elbow. Builds lats and mid-back.",
+    video:"https://www.youtube.com/watch?v=aU9fYvDVsRM" },
+  { id:"kbrdl",       name:"KB Romanian Deadlift",      unit:"kg",        bw:false, group:"Kettlebell", baseline:[16,20],   t6:[24,32],   t18:[36,44],
+    desc:"Hold one or two bells, hinge at the hips sliding them down the legs, feel the hamstring stretch, drive hips forward. Limited range protects the hip.",
+    video:"https://www.youtube.com/watch?v=l0gH_pZV9Vo" },
+  { id:"kbclean",     name:"KB Clean",                  unit:"kg",        bw:false, group:"Kettlebell", baseline:[12,16],   t6:[20,24],   t18:[28,32],
+    desc:"Hike the bell back and guide it to the rack position in one smooth pull, absorbing with the knees. Full-body power.",
+    video:"https://www.youtube.com/watch?v=tD5rKEDUE-g" },
+  { id:"kbdeadlift",  name:"KB Deadlift",               unit:"kg",        bw:false, group:"Kettlebell", baseline:[20,28],   t6:[32,40],   t18:[44,56],
+    desc:"Bell between the feet, hinge and grip with a flat back, stand tall squeezing glutes. Lower with control. Hip-safe deadlift pattern.",
+    video:"https://www.youtube.com/watch?v=vFWC5a5wQMw" },
+  { id:"kbsquatpress",name:"KB Squat to Press (Thruster)", unit:"kg",     bw:false, group:"Kettlebell", baseline:[10,14],   t6:[16,20],   t18:[24,28],
+    desc:"Goblet squat down, then drive up and press the bell overhead in one movement. Great conditioning and full-body work.",
+    video:"https://www.youtube.com/watch?v=O6gLGhSKkOc" },
+  { id:"kbcarry",     name:"KB Farmer / Suitcase Carry", unit:"kg each",  bw:false, group:"Kettlebell", baseline:[16,20],   t6:[24,32],   t18:[36,44],
+    desc:"Hold a bell in one or both hands and walk tall with braced core for distance or time. Builds grip, core and traps.",
+    video:"https://www.youtube.com/watch?v=Fkzk_RqlYig" },
+  { id:"kbsnatch",    name:"KB Snatch",                 unit:"kg",        bw:false, group:"Kettlebell", baseline:[12,16],   t6:[20,24],   t18:[28,32],
+    desc:"Swing the bell and punch it overhead in one explosive pull, locking out above the head. Advanced power and conditioning.",
+    video:"https://www.youtube.com/watch?v=9Ha2Hj24ffk" },
 ];
 
 const DAYS      = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const DAY_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const MONTHS    = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const GROUPS    = ["Chest","Back","Shoulders","Arms","Legs","Core"];
+const GROUPS    = ["Chest","Back","Shoulders","Arms","Legs","Core","Kettlebell"];
 const TIME_FILTERS = [
   { label:"All", days:null },
   { label:"1M",  days:30   },
@@ -554,7 +585,7 @@ const ConfirmModal = ({ name, body, confirmLabel = "Remove", onConfirm, onClose 
 // Add Exercise Modal
 // ─────────────────────────────────────────────
 const AddExerciseModal = ({ onSave, onClose }) => {
-  const [form, setForm] = useState({ name:"", bw:false, g0:"", g1:"", t60:"", t61:"", t180:"", t181:"" });
+  const [form, setForm] = useState({ name:"", bw:false, group:"Custom", g0:"", g1:"", t60:"", t61:"", t180:"", t181:"" });
   const set = (k, v) => setForm(f => ({ ...f, [k]:v }));
   const unit = form.bw ? "reps / secs" : "kg";
   const valid = form.name.trim() && form.g0 && form.g1 && form.t60 && form.t61 && form.t180 && form.t181;
@@ -564,6 +595,15 @@ const AddExerciseModal = ({ onSave, onClose }) => {
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
         <span style={{ fontSize:13, color:C.muted, fontWeight:600 }}>Bodyweight / reps only</span>
         <Toggle on={form.bw} onToggle={() => set("bw", !form.bw)} />
+      </div>
+      <label style={{ fontSize:12, fontWeight:600, color:C.muted, marginBottom:8, display:"block" }}>Category</label>
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>
+        {[...GROUPS, "Custom"].map(g => (
+          <button key={g} onClick={() => set("group", g)}
+            style={{ padding:"7px 13px", borderRadius:7, border:`1px solid ${form.group===g ? C.indigo : C.border}`, background:form.group===g ? C.indigo : C.input, color:form.group===g ? "#fff" : C.muted, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+            {g}
+          </button>
+        ))}
       </div>
       <SectionLabel>Benchmarks ({unit})</SectionLabel>
       {[["Baseline (now)", "g0","g1"], ["6-month target","t60","t61"], ["18-month peak","t180","t181"]].map(([lbl, k0, k1]) => (
@@ -581,7 +621,7 @@ const AddExerciseModal = ({ onSave, onClose }) => {
       <div style={{ marginTop:8 }}>
         <Btn disabled={!valid} onClick={() => {
           if (!valid) return;
-          onSave({ id:uid(), name:form.name.trim(), unit:form.bw ? "reps" : "kg", bw:form.bw, group:"Custom",
+          onSave({ id:uid(), name:form.name.trim(), unit:form.bw ? "reps" : "kg", bw:form.bw, group:form.group || "Custom",
             baseline:[+form.g0,+form.g1], t6:[+form.t60,+form.t61], t18:[+form.t180,+form.t181], custom:true });
         }}>Add Exercise</Btn>
       </div>
@@ -1064,7 +1104,18 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, pr
   const [activeDay, setActiveDay]     = useState(todayName());
   const [showPicker, setShowPicker]   = useState(false);
   const [pickerGroup, setPickerGroup] = useState("All");
+  const [showSwap, setShowSwap]       = useState(false);
   const exMap = Object.fromEntries(exercises.map(e => [e.id, e]));
+
+  // Swap the active day's exercises with another day
+  const swapDays = (otherDay) => {
+    const updated = { ...plan };
+    const tmp = updated[activeDay] || [];
+    updated[activeDay] = updated[otherDay] || [];
+    updated[otherDay] = tmp;
+    onPlanChange(updated);
+    setShowSwap(false);
+  };
 
   const dayList = plan[activeDay] || [];
 
@@ -1131,13 +1182,39 @@ const WeeklyPlanner = ({ exercises, plan, onPlanChange, onOpenExercise, logs, pr
             ) : null;
           })()}
         </div>
-        <button onClick={() => setShowPicker(true)}
-          style={{ background:C.input, border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 10px", color:C.muted, fontSize:10, fontWeight:600, cursor:"pointer" }}>
-          + Add
-        </button>
+        <div style={{ display:"flex", gap:6 }}>
+          <button onClick={() => setShowSwap(s => !s)}
+            style={{ background:C.input, border:`1px solid ${showSwap ? C.indigo : C.border}`, borderRadius:6, padding:"4px 10px", color:showSwap ? C.indigo : C.muted, fontSize:10, fontWeight:600, cursor:"pointer" }}>
+            ⇄ Swap
+          </button>
+          <button onClick={() => setShowPicker(true)}
+            style={{ background:C.input, border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 10px", color:C.muted, fontSize:10, fontWeight:600, cursor:"pointer" }}>
+            + Add
+          </button>
+        </div>
       </div>
 
+      {/* Swap panel */}
+      {showSwap && (
+        <div style={{ background:C.card, border:`1px solid ${C.indigo}44`, borderRadius:10, padding:"12px", marginBottom:12 }}>
+          <div style={{ fontSize:11, color:C.muted, marginBottom:8 }}>Swap <strong style={{ color:C.text }}>{activeDay}</strong>'s session with another day — useful if you're at the gym on a planned rest day, or catching up a missed session.</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6 }}>
+            {DAYS.filter(d => d !== activeDay).map(d => (
+              <button key={d} onClick={() => swapDays(d)}
+                style={{ padding:"8px 4px", borderRadius:7, border:`1px solid ${C.border}`, background:C.input, color:C.text, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                {d}<div style={{ fontSize:9, color:C.dim, marginTop:2 }}>{(plan[d]||[]).length} ex</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Exercises for this day */}
+      {activeDay !== todayName() && dayList.length > 0 && (
+        <div style={{ fontSize:10, color:C.indigo, background:C.indigo+"11", border:`1px solid ${C.indigo}33`, borderRadius:7, padding:"7px 10px", marginBottom:10 }}>
+          💡 Working this session today? Just tap any exercise below and log it — sessions save to the day you actually train.
+        </div>
+      )}
       {/* Warmup card for this day */}
       <WarmupCard dayExercises={dayList} exercises={exercises} />
 
@@ -1319,6 +1396,66 @@ const WeeklyTrafficLights = ({ logs, plan, exercises, calories, dailyLog, calori
   );
 };
 
+// ─────────────────────────────────────────────
+// Monthly muscle-group split pie (this calendar month)
+// ─────────────────────────────────────────────
+const MonthlyActivityPie = ({ logs, exercises }) => {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Count sessions per muscle GROUP this month
+  const groupColors = { Chest:"#6366f1", Back:"#22c55e", Shoulders:"#f59e0b", Arms:"#a855f7", Legs:"#3b82f6", Core:"#ef4444", Kettlebell:"#ec4899", Custom:"#6b7280" };
+  const counts = {};
+  exercises.forEach(ex => {
+    const g = ex.group || "Custom";
+    const n = (logs[ex.id] || []).filter(e => new Date(e.date) >= monthStart).length;
+    if (n > 0) counts[g] = (counts[g] || 0) + n;
+  });
+  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const total = entries.reduce((s,[,n]) => s+n, 0);
+
+  if (total === 0) {
+    return (
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:4 }}>This month</div>
+        <div style={{ fontSize:11, color:C.dim, textAlign:"center", padding:"12px 0" }}>No sessions logged this month yet.</div>
+      </div>
+    );
+  }
+
+  // Build conic-gradient slices
+  let acc = 0;
+  const stops = entries.map(([g,n]) => {
+    const start = (acc/total)*100;
+    acc += n;
+    const end = (acc/total)*100;
+    const col = groupColors[g] || "#6b7280";
+    return `${col} ${start}% ${end}%`;
+  }).join(", ");
+
+  return (
+    <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:12 }}>
+      <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:12 }}>This month — {total} session{total!==1?"s":""}</div>
+      <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+        <div style={{ width:90, height:90, borderRadius:"50%", background:`conic-gradient(${stops})`, flexShrink:0, position:"relative" }}>
+          <div style={{ position:"absolute", inset:"26%", borderRadius:"50%", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column" }}>
+            <div style={{ fontSize:16, fontWeight:800, color:C.text, lineHeight:1 }}>{total}</div>
+            <div style={{ fontSize:7, color:C.dim }}>sessions</div>
+          </div>
+        </div>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", gap:5 }}>
+          {entries.map(([g,n]) => (
+            <div key={g} style={{ display:"flex", alignItems:"center", gap:7, fontSize:11 }}>
+              <div style={{ width:10, height:10, borderRadius:3, background:groupColors[g]||"#6b7280", flexShrink:0 }} />
+              <span style={{ color:C.text, flex:1 }}>{g}</span>
+              <span style={{ color:C.muted, fontWeight:600 }}>{Math.round((n/total)*100)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakData, calories, cardioSessions, profile, dailyLog, calorieTarget, onUpdateDailyLog, onAddCardio, onDeleteCardio, onViewCalorieHistory }) => {
   const today = todayName();
   const todayPlan = plan[today] || [];
@@ -1365,6 +1502,16 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
         </div>
       )}
 
+      {/* Weekly traffic lights — moved above totals */}
+      <WeeklyTrafficLights
+        logs={logs}
+        plan={plan}
+        exercises={exercises}
+        calories={calories}
+        dailyLog={dailyLog}
+        calorieTarget={calorieTarget}
+      />
+
       {/* Stat tiles */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
         {[
@@ -1379,18 +1526,11 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
         ))}
       </div>
 
-      {/* Weekly traffic lights */}
-      <WeeklyTrafficLights
-        logs={logs}
-        plan={plan}
-        exercises={exercises}
-        calories={calories}
-        dailyLog={dailyLog}
-        calorieTarget={calorieTarget}
-      />
+      {/* Monthly activity pie */}
+      <MonthlyActivityPie logs={logs} exercises={exercises} />
 
-      {/* Muscle coverage — directly below This week */}
-      <MuscleMapPanel logs={logs} exercises={exercises} />
+      {/* Muscle coverage */}
+      <MuscleMapPanel logs={logs} exercises={exercises} onOpenExercise={onOpenExercise} />
 
       {/* Cardio tracker */}
       <HomeCardioTracker
@@ -1548,9 +1688,32 @@ const ProfileTab = ({ profile, onUpdate, onRegeneratePlan }) => {
 
   const save = () => { onUpdate(form); setSaved(true); setTimeout(() => setSaved(false), 2000); };
 
+  const [shared, setShared] = useState(false);
+  const shareApp = async () => {
+    const url = "https://strength-tracker-tawny.vercel.app";
+    const shareData = { title:"Strength Tracker", text:"Check out this strength & fat-loss tracker I'm using:", url };
+    try {
+      if (navigator.share) { await navigator.share(shareData); }
+      else { await navigator.clipboard.writeText(url); setShared(true); setTimeout(()=>setShared(false), 2000); }
+    } catch (e) { /* user cancelled share sheet — ignore */ }
+  };
+
   return (
     <div>
       <div style={{ fontSize:15, fontWeight:800, marginBottom:16 }}>Your Profile</div>
+
+      {/* Refer a friend */}
+      <div style={{ background:"linear-gradient(135deg,#1a2a3a,#131a2a)", border:`1px solid ${C.indigo}55`, borderRadius:12, padding:14, marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>📣 Refer a friend</div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>Share the app so a friend can sign up too.</div>
+        </div>
+        <button onClick={shareApp}
+          style={{ background:C.grad, border:"none", borderRadius:8, padding:"10px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0 }}>
+          {shared ? "✓ Link copied" : "Share"}
+        </button>
+      </div>
+
       {bmi && (
         <Card style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
           <div>
@@ -2719,6 +2882,22 @@ const WORKOUT_TEMPLATES = [
       Sunday:    [],
     }
   },
+  {
+    id:"strongway_smith",
+    name:"Strongway Smith Machine (Home)",
+    desc:"Built for the Strongway multi-gym: Smith bar, lat pulldown, cable stacks and leg developer. Upper/Lower split, hip-safe. Use on your home-gym days.",
+    tag:"Home",
+    days:4,
+    plan:{
+      Monday:    ["bench","incline","shoulder","pulldown","bicepcurl","abcrunch"],
+      Tuesday:   ["legpress","rdl","hipthrust","legext","legcurl","calfpress"],
+      Wednesday: [],
+      Thursday:  ["chestpress","seatedrow","lateraise","triceps","preacher","plank"],
+      Friday:    ["boxsquat","stiffleg","hipabduct","hipadduct","seatedcalf","russian"],
+      Saturday:  [],
+      Sunday:    [],
+    }
+  },
 ];
 
 // ─────────────────────────────────────────────
@@ -2828,6 +3007,27 @@ const TemplatesPanel = ({ currentPlan, onApply, trainingDays }) => {
 
       {open && !previewTemplate && (
         <div style={{ borderTop:"1px solid #2d2d4a" }}>
+          {/* Build your own */}
+          <div style={{ padding:"12px 14px", borderBottom:"1px solid #2d2d4a", background:"#13132a" }}>
+            <div style={{ fontSize:12, fontWeight:700, color:"#e2e8f0", marginBottom:3 }}>✏️ Build my own plan</div>
+            <div style={{ fontSize:11, color:"#6b7280", lineHeight:1.5, marginBottom:8 }}>Start from a blank week, then add exercises to each day yourself below.</div>
+            {confirmId === "__blank__" ? (
+              <div style={{ background:"#1a1a2e", borderRadius:8, padding:"10px 12px" }}>
+                <div style={{ fontSize:11, color:"#f59e0b", marginBottom:8 }}>⚠️ This clears every day so you can build from scratch. Sure?</div>
+                <div style={{ display:"flex", gap:7 }}>
+                  <button onClick={()=>setConfirmId(null)}
+                    style={{ flex:1, background:"#1e1e35", border:"none", borderRadius:7, padding:"8px", color:"#e2e8f0", fontSize:11, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+                  <button onClick={()=>{ const blank={}; DAYS.forEach(d=>blank[d]=[]); onApply(blank); setConfirmId(null); setOpen(false); }}
+                    style={{ flex:1, background:"linear-gradient(90deg,#6366f1,#a855f7)", border:"none", borderRadius:7, padding:"8px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Start blank</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={()=>setConfirmId("__blank__")}
+                style={{ background:"#1e1e35", border:"1px solid #3d3d5c", borderRadius:7, padding:"7px 14px", color:"#a78bfa", fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                Start a blank plan →
+              </button>
+            )}
+          </div>
           {WORKOUT_TEMPLATES.map(t => (
             <div key={t.id} style={{ padding:"12px 14px", borderBottom:"1px solid #2d2d4a" }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
@@ -2965,6 +3165,17 @@ const EXERCISE_MUSCLES = {
   russian:    { primary:["obliques"],                 secondary:["abs"] },
   deadbug:    { primary:["abs"],                       secondary:["lower_back"] },
   sideplankleft:{ primary:["obliques"],               secondary:["abs","shoulders"] },
+  backext:    { primary:["lower_back"],               secondary:["glutes","hamstrings"] },
+  kbswing:    { primary:["glutes","hamstrings"],       secondary:["lower_back","shoulders"] },
+  kbgoblet:   { primary:["quads","glutes"],            secondary:["hamstrings"] },
+  kbpress:    { primary:["shoulders"],                secondary:["triceps","traps"] },
+  kbrow:      { primary:["lats","traps"],              secondary:["biceps"] },
+  kbrdl:      { primary:["hamstrings","glutes"],       secondary:["lower_back"] },
+  kbclean:    { primary:["glutes","traps"],            secondary:["hamstrings","shoulders"] },
+  kbdeadlift: { primary:["glutes","hamstrings"],       secondary:["lower_back","quads"] },
+  kbsquatpress:{ primary:["quads","shoulders"],        secondary:["glutes","triceps"] },
+  kbcarry:    { primary:["traps","forearms"],          secondary:["abs","shoulders"] },
+  kbsnatch:   { primary:["shoulders","glutes"],        secondary:["hamstrings","traps"] },
 };
 
 // All muscle groups with their display names
@@ -3151,7 +3362,7 @@ const BodyMap = ({ muscleData, highlightPrimary = [], highlightSecondary = [], v
 // ─────────────────────────────────────────────
 // Muscle Map Panel — used on Dashboard + Exercise Detail
 // ─────────────────────────────────────────────
-const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
+const MuscleMapPanel = ({ logs, exercises, highlightEx = null, onOpenExercise = null }) => {
   const [view, setView] = useState("front");
   const [mode, setMode] = useState("week"); // "week" (volume) | "plan" (strength)
   const [hoveredMuscle, setHoveredMuscle] = useState(null);
@@ -3282,20 +3493,45 @@ const MuscleMapPanel = ({ logs, exercises, highlightEx = null }) => {
         </div>
       )}
 
-      {/* Hovered muscle tooltip */}
+      {/* Tapped muscle — status + exercises that build it */}
       {hoveredMuscle && !highlightEx && (
-        <div style={{ marginTop:10, background:C.input, borderRadius:7, padding:"8px 12px", fontSize:11 }}>
-          <span style={{ fontWeight:700, color:C.text }}>{muscleName(hoveredMuscle)}</span>
-          <span style={{ color:C.muted, marginLeft:6 }}>
-            {usingStrength
-              ? (strengthData[hoveredMuscle] === null ? "No data yet"
-                 : strengthData[hoveredMuscle] >= 90 ? `✅ At target (${strengthData[hoveredMuscle]}% of 6mo)`
-                 : strengthData[hoveredMuscle] >= 50 ? `🟡 Building (${strengthData[hoveredMuscle]}% of 6mo)`
-                 : `🔴 Behind (${strengthData[hoveredMuscle]}% of 6mo)`)
-              : (muscleData[hoveredMuscle] >= 4 ? "✅ Well trained this week" :
-                 muscleData[hoveredMuscle] >= 1 ? "🟡 Some work this week" :
-                 "🔴 Not trained this week")}
-          </span>
+        <div style={{ marginTop:10, background:C.input, borderRadius:8, padding:"10px 12px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:11, marginBottom:8 }}>
+            <span style={{ fontWeight:700, color:C.text }}>{muscleName(hoveredMuscle)}</span>
+            <span style={{ color:C.muted }}>
+              {usingStrength
+                ? (strengthData[hoveredMuscle] === null ? "No data yet"
+                   : strengthData[hoveredMuscle] >= 90 ? `✅ At target`
+                   : strengthData[hoveredMuscle] >= 50 ? `🟡 Building`
+                   : `🔴 Behind`)
+                : (muscleData[hoveredMuscle] >= 4 ? "✅ Well trained" :
+                   muscleData[hoveredMuscle] >= 1 ? "🟡 Some work" :
+                   "🔴 Not trained")}
+            </span>
+          </div>
+          {(() => {
+            const matches = exercises.filter(ex => {
+              const m = EXERCISE_MUSCLES[ex.id];
+              return m && (m.primary.includes(hoveredMuscle) || m.secondary.includes(hoveredMuscle));
+            });
+            if (matches.length === 0) return <div style={{ fontSize:10, color:C.dim }}>No exercises mapped for this muscle yet.</div>;
+            return (
+              <div>
+                <div style={{ fontSize:9, color:C.dim, textTransform:"uppercase", fontWeight:600, marginBottom:6 }}>Exercises that build this</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                  {matches.map(ex => {
+                    const isPrimary = EXERCISE_MUSCLES[ex.id].primary.includes(hoveredMuscle);
+                    return (
+                      <button key={ex.id} onClick={() => onOpenExercise && onOpenExercise(ex.id)}
+                        style={{ fontSize:10, background:C.card, border:`1px solid ${isPrimary ? C.indigo+"66" : C.border}`, borderRadius:6, padding:"4px 9px", color:isPrimary ? C.indigo : C.muted, cursor: onOpenExercise ? "pointer" : "default", fontWeight:isPrimary?600:400 }}>
+                        {ex.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -3773,7 +4009,11 @@ export default function App() {
       });
     }
     if (data.logs)            setLogs(data.logs);
-    if (data.customEx?.length) setExercises([...SEED_EXERCISES, ...data.customEx.map(e => ({ ...e, bw:e.bodyweight, group:e.exercise_group, custom:true }))]);
+    if (data.customEx?.length) setExercises([...SEED_EXERCISES, ...data.customEx.map(e => {
+      // Re-home a custom "Back Extension" into the Back group without touching its id/logs
+      const isBackExt = (e.name || "").trim().toLowerCase() === "back extension";
+      return { ...e, bw:e.bodyweight, group: isBackExt ? "Back" : e.exercise_group, custom:true };
+    })]);
     if (data.plan)            setPlan(data.plan);
     if (data.favourites)      setFavourites(data.favourites);
     if (data.weights)         setBodyWeights(data.weights);
