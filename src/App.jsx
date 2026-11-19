@@ -203,12 +203,50 @@ const SEED_EXERCISES = [
   { id:"kbsnatch",    name:"KB Snatch",                 unit:"kg",        bw:false, group:"Kettlebell", baseline:[12,16],   t6:[20,24],   t18:[28,32],
     desc:"Swing the bell and punch it overhead in one explosive pull, locking out above the head. Advanced power and conditioning.",
     video:"https://www.youtube.com/watch?v=9Ha2Hj24ffk" },
+
+  // ───────── Strongway Smith-machine multi-gym (home) ─────────
+  { id:"sw_smithsquat",  name:"Smith Machine Squat",        unit:"kg", bw:false, group:"Strongway", baseline:[40,60], t6:[70,90], t18:[100,120],
+    desc:"Strongway Smith bar on your shoulders, feet slightly forward. Squat to parallel keeping the back supported by the fixed bar path. Hip-friendly.",
+    video:"https://www.youtube.com/watch?v=kxVCvKss-Og" },
+  { id:"sw_benchpress",  name:"Smith Machine Bench Press",  unit:"kg", bw:false, group:"Strongway", baseline:[40,55], t6:[60,75], t18:[80,95],
+    desc:"Set the Strongway bench flat under the Smith bar. Lower to mid-chest, press up on the guided track. Safer to train to failure solo.",
+    video:"https://www.youtube.com/watch?v=OZ2y3bA9Un0" },
+  { id:"sw_inclinepress",name:"Smith Incline Press",        unit:"kg", bw:false, group:"Strongway", baseline:[30,45], t6:[50,62], t18:[68,80],
+    desc:"Incline the Strongway bench to ~30°. Press the Smith bar from upper chest. Builds upper pecs and front delts.",
+    video:"https://www.youtube.com/watch?v=8urC1iHcAZ8" },
+  { id:"sw_shoulderpress",name:"Smith Shoulder Press",      unit:"kg", bw:false, group:"Strongway", baseline:[25,35], t6:[40,50], t18:[55,65],
+    desc:"Seated upright under the Smith bar. Press overhead on the fixed path. Strong overhead builder with no spotter needed.",
+    video:"https://www.youtube.com/watch?v=unX2Q0Bb3E8" },
+  { id:"sw_latpulldown", name:"Lat Pulldown (cable tower)", unit:"kg", bw:false, group:"Strongway", baseline:[35,50], t6:[55,65], t18:[70,85],
+    desc:"Strongway high cable tower with wide bar. Pull to upper chest, drive elbows down and back. Main back-width builder.",
+    video:"https://www.youtube.com/watch?v=CAwf7n6Luuc" },
+  { id:"sw_seatedrow",   name:"Seated Cable Row",           unit:"kg", bw:false, group:"Strongway", baseline:[35,50], t6:[55,65], t18:[70,85],
+    desc:"Low cable on the Strongway stack. Row to the stomach, squeeze shoulder blades. Back thickness without loading the spine.",
+    video:"https://www.youtube.com/watch?v=GZbfZ033f74" },
+  { id:"sw_pecdeck",     name:"Pec Deck / Cable Fly",       unit:"kg", bw:false, group:"Strongway", baseline:[20,30], t6:[35,45], t18:[50,60],
+    desc:"Use the Strongway pec-deck station or dual cables. Bring handles together in front of the chest, controlled. Chest isolation.",
+    video:"https://www.youtube.com/watch?v=Z57CtFmRMxA" },
+  { id:"sw_legextension",name:"Leg Developer — Extension",  unit:"kg", bw:false, group:"Strongway", baseline:[25,40], t6:[45,55], t18:[60,75],
+    desc:"Seated on the Strongway leg developer, pad on the shins. Extend to straight legs, squeeze quads at the top. Knee-friendly quad work.",
+    video:"https://www.youtube.com/watch?v=YyvSfVjQeL0" },
+  { id:"sw_legcurl",     name:"Leg Developer — Curl",       unit:"kg", bw:false, group:"Strongway", baseline:[20,35], t6:[40,50], t18:[55,70],
+    desc:"Seated or lying on the Strongway leg developer, pad on the heels. Curl towards the glutes. Hamstring isolation.",
+    video:"https://www.youtube.com/watch?v=1Tq3QdYUuHs" },
+  { id:"sw_bicepcurl",   name:"Cable Biceps Curl",          unit:"kg", bw:false, group:"Strongway", baseline:[15,25], t6:[30,38], t18:[42,52],
+    desc:"Low cable on the Strongway stack with a straight or EZ bar. Curl with the elbows pinned. Constant-tension biceps work.",
+    video:"https://www.youtube.com/watch?v=NFzTWp2qpiE" },
+  { id:"sw_triceppush",  name:"Cable Triceps Pushdown",     unit:"kg", bw:false, group:"Strongway", baseline:[15,25], t6:[30,38], t18:[42,52],
+    desc:"High cable on the Strongway tower with a bar or rope. Push down to lockout keeping elbows fixed. Triceps isolation.",
+    video:"https://www.youtube.com/watch?v=2-LAMcpzODU" },
+  { id:"sw_calfraise",   name:"Smith Machine Calf Raise",   unit:"kg", bw:false, group:"Strongway", baseline:[40,60], t6:[70,90], t18:[100,120],
+    desc:"Stand on a block under the Smith bar, balls of feet on the edge. Rise onto toes, full stretch at the bottom. Calf builder.",
+    video:"https://www.youtube.com/watch?v=c-GLsADsCTvo" },
 ];
 
 const DAYS      = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const DAY_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const MONTHS    = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const GROUPS    = ["Chest","Back","Shoulders","Arms","Legs","Core","Kettlebell"];
+const GROUPS    = ["Chest","Back","Shoulders","Arms","Legs","Core","Kettlebell","Strongway"];
 const TIME_FILTERS = [
   { label:"All", days:null },
   { label:"1M",  days:30   },
@@ -218,7 +256,7 @@ const TIME_FILTERS = [
 const GOALS = ["Build muscle/size","General strength & health","Athletic performance","Fat loss + tone"];
 const EXP   = ["Complete beginner","Some experience (1-2 yrs)","Intermediate (3-5 yrs)","Advanced (5+ yrs)"];
 const EMPTY_PLAN    = Object.fromEntries(DAYS.map(d => [d, []]));
-const EMPTY_PROFILE = { name:"", age:"", weight:"", height:"", goal:GOALS[0], experience:EXP[1], email:"", emailConsent:false, emailFrequency:"weekly", trainingDays:{}, };
+const EMPTY_PROFILE = { name:"", age:"", weight:"", height:"", goal:GOALS[0], experience:EXP[1], email:"", emailConsent:false, emailFrequency:"weekly", trainingDays:{}, hideNutrition:false, };
 
 const GYM_TYPES = [
   { id:"gym",     label:"Commercial gym",  icon:"🏋️", desc:"Full equipment access" },
@@ -1586,12 +1624,14 @@ const Dashboard = ({ exercises, logs, plan, onOpenExercise, favourites, streakDa
       )}
 
       {/* Simple calorie tracker — just above Favourites */}
+      {!profile?.hideNutrition && (
       <HomeCalorieTracker
         dailyLog={dailyLog}
         onUpdate={onUpdateDailyLog}
         calorieTarget={calorieTarget}
         onViewHistory={onViewCalorieHistory}
       />
+      )}
 
       {/* Favourites */}
       {favourites.length > 0 && <>
@@ -1711,6 +1751,18 @@ const ProfileTab = ({ profile, onUpdate, onRegeneratePlan }) => {
         <button onClick={shareApp}
           style={{ background:C.grad, border:"none", borderRadius:8, padding:"10px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0 }}>
           {shared ? "✓ Link copied" : "Share"}
+        </button>
+      </div>
+
+      {/* Hide eating / calorie info */}
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.text }}>🍽️ Hide eating &amp; calorie info</div>
+          <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>Removes the calorie tracker and calorie charts from your home screen. Workout tracking is unaffected.</div>
+        </div>
+        <button onClick={() => { const nv = !form.hideNutrition; set("hideNutrition", nv); onUpdate({ ...form, hideNutrition: nv }); }}
+          style={{ flexShrink:0, width:48, height:28, borderRadius:999, border:"none", cursor:"pointer", background:form.hideNutrition ? C.indigo : C.border, position:"relative", transition:"background .15s" }}>
+          <span style={{ position:"absolute", top:3, left:form.hideNutrition ? 23 : 3, width:22, height:22, borderRadius:"50%", background:"#fff", transition:"left .15s" }} />
         </button>
       </div>
 
@@ -2889,11 +2941,11 @@ const WORKOUT_TEMPLATES = [
     tag:"Home",
     days:4,
     plan:{
-      Monday:    ["bench","incline","shoulder","pulldown","bicepcurl","abcrunch"],
-      Tuesday:   ["legpress","rdl","hipthrust","legext","legcurl","calfpress"],
+      Monday:    ["sw_benchpress","sw_inclinepress","sw_shoulderpress","sw_latpulldown","sw_bicepcurl","abcrunch"],
+      Tuesday:   ["sw_smithsquat","rdl","hipthrust","sw_legextension","sw_legcurl","sw_calfraise"],
       Wednesday: [],
-      Thursday:  ["chestpress","seatedrow","lateraise","triceps","preacher","plank"],
-      Friday:    ["boxsquat","stiffleg","hipabduct","hipadduct","seatedcalf","russian"],
+      Thursday:  ["sw_benchpress","sw_seatedrow","lateraise","sw_triceppush","sw_pecdeck","plank"],
+      Friday:    ["sw_smithsquat","stiffleg","hipabduct","hipadduct","sw_legcurl","russian"],
       Saturday:  [],
       Sunday:    [],
     }
@@ -3961,6 +4013,7 @@ export default function App() {
   }, [undoAction]);
   const [showAdd,     setShowAdd]     = useState(false);
   const [groupFilter, setGroupFilter] = useState("All");
+  const [exSearch,    setExSearch]    = useState("");
   const [exView,      setExView]      = useState("charts"); // "list" | "charts"
   const [exSort,      setExSort]      = useState("group");  // "group"|"recent"|"notstarted"|"best"
   const [infoEx,      setInfoEx]      = useState(null);
@@ -4006,6 +4059,7 @@ export default function App() {
         emailConsent:  p.email_consent || false,
         emailFrequency:p.email_frequency || "weekly",
         email:         p.email || "",
+        hideNutrition: (() => { try { return localStorage.getItem("st_hideNutrition") === "1"; } catch(e) { return false; } })(),
       });
     }
     if (data.logs)            setLogs(data.logs);
@@ -4032,6 +4086,7 @@ export default function App() {
   // Persist helpers — all write to Supabase
   const persistProfile = useCallback(async (v) => {
     setProfile(v);
+    try { localStorage.setItem("st_hideNutrition", v?.hideNutrition ? "1" : "0"); } catch(e) {}
     if (user) await saveProfile(user.id, v);
   }, [user]);
 
@@ -4260,6 +4315,20 @@ export default function App() {
               ))}
             </div>
 
+            {/* Search */}
+            <div style={{ position:"relative", marginBottom:10 }}>
+              <input
+                value={exSearch}
+                onChange={e => setExSearch(e.target.value)}
+                placeholder="🔍 Search exercises..."
+                style={{ width:"100%", boxSizing:"border-box", padding:"9px 32px 9px 12px", borderRadius:8, border:`1px solid ${C.border}`, background:C.input, color:C.text, fontSize:13, outline:"none" }}
+              />
+              {exSearch && (
+                <button onClick={() => setExSearch("")}
+                  style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:C.muted, fontSize:16, cursor:"pointer", lineHeight:1 }}>×</button>
+              )}
+            </div>
+
             {/* Group filter */}
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10, overflowX:"auto", paddingBottom:4 }}>
               {["All","Favourites",...GROUPS,"Custom"].map(g => (
@@ -4308,6 +4377,10 @@ export default function App() {
             {/* Filtered + sorted exercise list */}
             {exercises
               .filter(ex => {
+                if (exSearch.trim()) {
+                  const q = exSearch.trim().toLowerCase();
+                  if (!((ex.name || "").toLowerCase().includes(q) || (ex.group || "").toLowerCase().includes(q))) return false;
+                }
                 if (groupFilter === "All") return true;
                 if (groupFilter === "Favourites") return favourites.includes(ex.id);
                 if (groupFilter === "Custom") return !!ex.custom;
@@ -4458,7 +4531,7 @@ export default function App() {
             <SessionSummary logs={logs} exercises={exercises} calories={calories} cardioSessions={cardioSessions} profile={profile} />
 
             {/* Calorie variance chart */}
-            <CalorieVarianceChart
+            {!profile?.hideNutrition && <CalorieVarianceChart
               dailyLog={dailyLog}
               calorieTarget={{ ...MY_PLAN.dailyTargets, ...planOverrides }.calories}
               onEditDay={(date, total) => {
@@ -4467,7 +4540,7 @@ export default function App() {
                 setDailyLog({ ...dailyLog, [date]:updated });
                 if (user) saveDailyLog(user.id, date, updated);
               }}
-            />
+            />}
 
             {/* Rest timer */}
             <SectionLabel>Rest Timer</SectionLabel>
